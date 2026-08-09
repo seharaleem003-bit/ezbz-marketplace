@@ -1,0 +1,667 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------- Auth ----------
+
+enum Role {
+  BUYER
+  ADMIN
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  passwordHash  String?
+  role          Role      @default(BUYER)
+
+  stripeCustomerId String? @unique
+
+  referralCode     String? @unique
+  referredByUserId String?
+  referredBy       User?   @relation("Referrals", fields: [referredByUserId], references: [id], onDelete: SetNull)
+  referrals        User[]  @relation("Referrals")
+
+  accounts     Account[]
+  sessions     Session[]
+  carts        Cart[]
+  orders       Order[]
+  addresses    Address[]
+  seller       Seller?
+  provider     ServiceProvider?
+  fundraisers  Fundraiser[]             @relation("FundraiserOrganizer")
+  watches      Watch[]
+  tickets      SupportTicket[]
+  creditLedger StoreCreditTransaction[]
+  helpNeeds    HelpBoardNeed[]          @relation("HelpNeedPoster")
+  contributions HelpBoardContribution[]
+  sellerFlagsCreated SellerFlag[]
+  nonprofitPartnerProfile NonprofitPartner?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Standard Auth.js Prisma adapter models.
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ---------- Sellers (product marketplace) ----------
+
+enum SellerStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+// A Seller is a profile attached to a User, not a Role — a buyer can also
+// be a seller. Kept separate from User so seller-only fields (Connect
+// account, KYC, trust stats) don't leak onto every user row.
+model Seller {
+  id          String       @id @default(cuid())
+  userId      String       @unique
+  user        User         @relation(fields: [userId], references: [id])
+  displayName String
+  bio         String?
+  status      SellerStatus @default(PENDING)
+
+  city   String?
+  region String?
+
+  // Ship-from address for Easyship shipment creation on the seller's own
+  // orders. Nullable — sellers onboarded before this existed, or who
+  // haven't filled it in yet, simply can't create shipments until they do
+  // (checked at the application layer, not enforced here).
+  addressLine1 String?
+  addressLine2 String?
+  postalCode   String?
+  country      String  @default("US")
+  phone        String?
+
+  stripeAccountId          String?   @unique
+  stripeOnboardingComplete Boolean   @default(false)
+  identityVerificationId   String?
+  identityVerifiedAt       DateTime?
+
+  // First-sale-free growth mechanic: 0% commission until this flips true.
+  firstSaleUsed Boolean @default(false)
+
+  // Seller's stated shipping handling time, in days — the promise the trust
+  // badge's on-time-shipping rate is measured against.
+  handlingDays Int @default(3)
+
+  // Trust badge tier, recalculated on a rolling basis (see lib/seller-badges.ts)
+  // from a trailing 90-day window of real order/dispute/flag data — never
+  // self-reported. "Identity Verified" is NOT stored here since it's just
+  // `stripeOnboardingComplete` (already tracked above) checked live.
+  badgeTier          SellerBadgeTier @default(NEW)
+  badgesCalculatedAt DateTime?
+
+  listings Listing[]
+  orders   Order[]
+  flags    SellerFlag[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum SellerBadgeTier {
+  NEW
+  TRUSTED
+  TOP
+}
+
+// Admin-recorded policy violations — the one non-derived input into the
+// trust badge calc, since "zero admin-flagged violations" has to come from
+// an actual admin action, not something computable from order data.
+model SellerFlag {
+  id          String   @id @default(cuid())
+  sellerId    String
+  seller      Seller   @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  reason      String
+  createdById String
+  createdBy   User     @relation(fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@index([sellerId])
+}
+
+// A buyer's saved shipping address book — separate from Seller's own
+// ship-from address (different owner, different purpose). Checkout reads
+// these to let a repeat buyer skip retyping their address.
+model Address {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName   String
+  line1      String
+  line2      String?
+  city       String
+  state      String
+  postalCode String
+  country    String   @default("United States")
+  isDefault  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// ---------- Catalog ----------
+
+model Category {
+  id       String    @id @default(cuid())
+  name     String
+  slug     String    @unique
+  listings Listing[]
+}
+
+enum ListingCondition {
+  NEW
+  LIKE_NEW
+  GOOD
+  FAIR
+  SALVAGE
+}
+
+enum ListingStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model Listing {
+  id          String           @id @default(cuid())
+  slug        String           @unique
+  title       String
+  description String
+  categoryId  String
+  category    Category         @relation(fields: [categoryId], references: [id])
+  condition   ListingCondition
+  status      ListingStatus    @default(DRAFT)
+
+  priceCents       Int
+  retailPriceCents Int?
+  inventoryQty     Int          @default(0)
+
+  dealScore          Int       @default(0)
+  dealScoreUpdatedAt DateTime?
+
+  amazonPriceCents     Int?
+  amazonUrl            String?
+  amazonPriceCheckedAt DateTime?
+
+  // A listing belongs to at most one of: a Seller, a Fundraiser, or neither
+  // (neither = EZBZ-direct inventory, the Phase 1 default). Enforced at the
+  // application layer, not the DB, since Postgres has no native XOR constraint.
+  sellerId     String?
+  seller       Seller?     @relation(fields: [sellerId], references: [id])
+  fundraiserId String?
+  fundraiser   Fundraiser? @relation(fields: [fundraiserId], references: [id])
+
+  fulfillmentPickup   Boolean @default(false)
+  fulfillmentDelivery Boolean @default(true)
+
+  photos     ListingPhoto[]
+  videos     ListingVideo[]
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+  watches    Watch[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, dealScore])
+  @@index([categoryId])
+  @@index([sellerId])
+  @@index([fundraiserId])
+}
+
+model ListingPhoto {
+  id        String  @id @default(cuid())
+  listingId String
+  listing   Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  url       String
+  altText   String?
+  sortOrder Int     @default(0)
+}
+
+model ListingVideo {
+  id             String   @id @default(cuid())
+  listingId      String
+  listing        Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  url            String
+  caption        String?
+  addedByAdminId String?
+  createdAt      DateTime @default(now())
+}
+
+// ---------- Cart ----------
+
+model Cart {
+  id         String     @id @default(cuid())
+  userId     String?    @unique
+  user       User?      @relation(fields: [userId], references: [id])
+  guestToken String?    @unique
+  items      CartItem[]
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+}
+
+model CartItem {
+  id              String  @id @default(cuid())
+  cartId          String
+  cart            Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  listingId       String
+  listing         Listing @relation(fields: [listingId], references: [id])
+  quantity        Int
+  priceCentsAtAdd Int
+
+  @@unique([cartId, listingId])
+}
+
+// ---------- Orders ----------
+
+enum OrderStatus {
+  PLACED
+  PROCESSING
+  SHIPPED
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  TEST_MODE
+  PENDING
+  PAID
+  PARTIALLY_REFUNDED
+  REFUNDED
+  FAILED
+}
+
+enum ShippingMethod {
+  PICKUP
+  DELIVERY
+}
+
+// One Order == one merchant (Seller, Fundraiser, or neither/EZBZ-direct).
+// A cart spanning multiple sellers still checks out as a single Stripe
+// charge ("buyer pays once" per the brief) using Connect's separate
+// charges-and-transfers pattern: one PaymentIntent funds the whole cart,
+// then a per-merchant Transfer is created for each sibling Order in the
+// webhook handler — so stripeCheckoutSessionId/stripePaymentIntentId are
+// intentionally NOT unique (they're shared across sibling Orders from one
+// checkout); stripeTransferId is the per-Order payout and is unique.
+model Order {
+  id            String        @id @default(cuid())
+  orderNumber   String        @unique
+  userId        String
+  user          User          @relation(fields: [userId], references: [id])
+  sellerId      String?
+  seller        Seller?       @relation(fields: [sellerId], references: [id])
+  fundraiserId  String?
+  fundraiser    Fundraiser?   @relation(fields: [fundraiserId], references: [id])
+  status        OrderStatus   @default(PLACED)
+  paymentStatus PaymentStatus @default(TEST_MODE)
+
+  subtotalCents           Int
+  taxCents                Int @default(0)
+  storeCreditAppliedCents Int @default(0)
+  roundUpCents            Int @default(0)
+  totalCents              Int
+
+  // Split accounting — snapshotted at order time so later commission-rate
+  // changes never rewrite historical orders.
+  commissionBps           Int @default(1500)
+  platformFeeCents        Int @default(0)
+  merchantPayoutCents     Int @default(0)
+  refundedAmountCents     Int @default(0)
+  refundedPlatformFeeCents Int @default(0)
+
+  // A real Stripe dispute (charge.dispute.created) against this order's
+  // payment intent — feeds the trust badge's refund/dispute rate alongside
+  // refundedAmountCents. Disputes apply per-PaymentIntent, so a disputed
+  // multi-seller cart marks every sibling Order under that PaymentIntent.
+  disputedAt DateTime?
+
+  stripeCheckoutSessionId String?
+  stripePaymentIntentId   String?
+  stripeTransferId        String? @unique
+
+  shippingMethod  ShippingMethod @default(DELIVERY)
+  shippingName    String
+  shippingLine1   String
+  shippingLine2   String?
+  shippingCity    String
+  shippingState   String
+  shippingPostal  String
+  shippingCountry String
+
+  // Easyship order tracking
+  easyshipShipmentId String?
+  carrier             String?
+  trackingNumber      String?
+  trackingUrl         String?
+  estimatedDeliveryAt DateTime?
+  shippedAt           DateTime?
+  deliveredAt         DateTime?
+
+  items          OrderItem[]
+  creditLedger   StoreCreditTransaction[]
+  contributions  HelpBoardContribution[]
+  createdAt      DateTime                 @default(now())
+
+  @@index([sellerId])
+  @@index([fundraiserId])
+  @@index([stripeCheckoutSessionId])
+  @@index([stripePaymentIntentId])
+}
+
+model OrderItem {
+  id                   String  @id @default(cuid())
+  orderId              String
+  order                Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  listingId            String
+  listing              Listing @relation(fields: [listingId], references: [id])
+  titleAtPurchase      String
+  priceCentsAtPurchase Int
+  quantity             Int
+}
+
+// ---------- Referrals / store credit ----------
+
+enum CreditReason {
+  REFERRAL_BONUS
+  REDEEMED_AT_CHECKOUT
+  ADMIN_ADJUSTMENT
+}
+
+// Append-only ledger — a user's balance is the sum of their rows, never a
+// mutable cached field, so it can never drift from its own history.
+model StoreCreditTransaction {
+  id             String       @id @default(cuid())
+  userId         String
+  user           User         @relation(fields: [userId], references: [id])
+  amountCents    Int
+  reason         CreditReason
+  relatedOrderId String?
+  relatedOrder   Order?       @relation(fields: [relatedOrderId], references: [id])
+  createdAt      DateTime     @default(now())
+}
+
+// ---------- Watch / price drop alerts ----------
+
+model Watch {
+  id                String    @id @default(cuid())
+  userId            String
+  user              User      @relation(fields: [userId], references: [id])
+  listingId         String
+  listing           Listing   @relation(fields: [listingId], references: [id])
+  priceCentsAtWatch Int
+  notifiedAt        DateTime?
+  createdAt         DateTime  @default(now())
+
+  @@unique([userId, listingId])
+}
+
+// ---------- Support ("Chat With Us" async ticket intake) ----------
+
+enum TicketStatus {
+  OPEN
+  RESOLVED
+}
+
+model SupportTicket {
+  id           String       @id @default(cuid())
+  ticketNumber String       @unique
+  email        String
+  message      String
+  userId       String?
+  user         User?        @relation(fields: [userId], references: [id])
+  status       TicketStatus @default(OPEN)
+  createdAt    DateTime     @default(now())
+}
+
+// ---------- Services Marketplace ----------
+
+enum ProviderStatus {
+  PENDING_VERIFICATION
+  ACTIVE
+  SUSPENDED
+  REJECTED
+}
+
+enum BackgroundCheckStatus {
+  NOT_STARTED
+  PENDING
+  CLEAR
+  CONSIDER
+  FAILED
+}
+
+// Admin-editable, expandable list — not a hardcoded enum, per the brief.
+model ServiceCategory {
+  id        String            @id @default(cuid())
+  name      String
+  slug      String            @unique
+  group     String
+  sortOrder Int               @default(0)
+  providers ServiceProvider[]
+}
+
+model ServiceProvider {
+  id           String          @id @default(cuid())
+  userId       String          @unique
+  user         User            @relation(fields: [userId], references: [id])
+  categoryId   String
+  category     ServiceCategory @relation(fields: [categoryId], references: [id])
+  businessName String
+  description  String
+  city         String?
+  region       String?
+  status       ProviderStatus  @default(PENDING_VERIFICATION)
+
+  identityVerificationId     String?
+  identityVerifiedAt         DateTime?
+  backgroundCheckId          String?
+  backgroundCheckStatus      BackgroundCheckStatus @default(NOT_STARTED)
+  backgroundCheckCompletedAt DateTime?
+
+  stripeCustomerId String?
+
+  subscriptions ServiceSubscription[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([categoryId])
+}
+
+enum SubscriptionPlan {
+  THREE_MONTH
+  SIX_MONTH
+  TWELVE_MONTH
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+model ServiceSubscription {
+  id                     String             @id @default(cuid())
+  providerId             String
+  provider               ServiceProvider    @relation(fields: [providerId], references: [id])
+  plan                   SubscriptionPlan
+  priceCents             Int
+  startsAt               DateTime
+  endsAt                 DateTime
+  stripePaymentIntentId  String?
+  status                 SubscriptionStatus @default(ACTIVE)
+  createdAt              DateTime           @default(now())
+
+  @@index([providerId])
+}
+
+// ---------- Fundraiser Pages ----------
+
+enum FundraiserStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+model Fundraiser {
+  id              String           @id @default(cuid())
+  organizerUserId String
+  organizer       User             @relation("FundraiserOrganizer", fields: [organizerUserId], references: [id])
+  name            String
+  slug            String           @unique
+  cause           String
+  status          FundraiserStatus @default(PENDING)
+  commissionBps   Int              @default(500)
+
+  stripeAccountId          String? @unique
+  stripeOnboardingComplete Boolean @default(false)
+
+  listings Listing[]
+  orders   Order[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ---------- Help Board ----------
+
+enum NeedStatus {
+  OPEN
+  FULFILLED
+  CLOSED
+}
+
+enum PartnerStatus {
+  PENDING
+  APPROVED
+  SUSPENDED
+}
+
+model NonprofitPartner {
+  id     String        @id @default(cuid())
+  name   String
+  status PartnerStatus @default(PENDING)
+
+  // Optional login for the partner org itself — lets them post their own
+  // needs directly (the brief's point: the nonprofit vets its own need,
+  // not EZBZ vetting individuals). Admin-created partners can go without
+  // one and have EZBZ post on their behalf instead.
+  contactUserId String? @unique
+  contactUser   User?   @relation(fields: [contactUserId], references: [id])
+
+  needs HelpBoardNeed[]
+
+  createdAt DateTime @default(now())
+}
+
+model HelpBoardNeed {
+  id                 String            @id @default(cuid())
+  title              String
+  description        String
+  postedByUserId     String?
+  postedBy           User?             @relation("HelpNeedPoster", fields: [postedByUserId], references: [id])
+  nonprofitPartnerId String?
+  nonprofitPartner   NonprofitPartner? @relation(fields: [nonprofitPartnerId], references: [id])
+  goalCents          Int
+  raisedCents        Int               @default(0)
+  status             NeedStatus        @default(OPEN)
+  deliveredAt        DateTime?
+
+  contributions HelpBoardContribution[]
+
+  createdAt DateTime @default(now())
+}
+
+enum ContributionSource {
+  DIRECT
+  ROUND_UP
+}
+
+model HelpBoardContribution {
+  id                    String             @id @default(cuid())
+  // Nullable: "Round Up for Good" contributions at regular checkout aren't
+  // earmarked for one need at contribution time — an admin allocates general
+  // fund contributions to specific needs later. Direct "Sponsor a Need"
+  // contributions always set this.
+  needId                String?
+  need                  HelpBoardNeed?     @relation(fields: [needId], references: [id])
+  contributorUserId     String?
+  contributor           User?              @relation(fields: [contributorUserId], references: [id])
+  relatedOrderId        String?
+  relatedOrder          Order?             @relation(fields: [relatedOrderId], references: [id])
+  amountCents           Int
+  source                ContributionSource @default(DIRECT)
+  stripePaymentIntentId String?
+  createdAt             DateTime           @default(now())
+}
+
+// ---------- Pop-up events ----------
+
+enum PopUpEventType {
+  PICKUP_DAY
+  POP_MARKET
+}
+
+model PopUpEvent {
+  id          String         @id @default(cuid())
+  title       String
+  description String
+  eventType   PopUpEventType
+  location    String
+  city        String?
+  region      String?
+  startsAt    DateTime
+  endsAt      DateTime
+  createdAt   DateTime       @default(now())
+}

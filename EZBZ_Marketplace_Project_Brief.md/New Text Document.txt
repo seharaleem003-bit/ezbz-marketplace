@@ -1,0 +1,54 @@
+# EZBZ Marketplace — Project Brief & Roadmap
+
+## Overview
+EZBZ Marketplace is a multi-vendor liquidation and auction e-commerce platform. It connects sellers of liquidation/auction inventory with buyers looking for deals, combining a traditional storefront experience with auction-style and deal-discovery features.
+
+## Branding
+- **Color scheme:** Navy and gold
+- **Logo:** Minimal wordmark (text-based logo, no complex iconography)
+- **Overall feel:** Clean, trustworthy, deal-focused — should feel more premium than a typical liquidation site to build buyer confidence
+
+## Core Features
+
+### 1. Deal Score™
+A proprietary scoring system shown on each listing that gives buyers a quick signal of how good a deal is (e.g., based on retail price comparison, auction/liquidation discount, condition, etc.). This is a differentiating, brandable feature — should be visually prominent on listing cards and detail pages.
+
+### 2. Amazon Price Compare Link-Out
+On relevant listings, show a comparison to the current Amazon price with a link-out, helping buyers instantly see the value of buying through EZBZ vs. retail.
+
+### 3. Async Video Walkarounds
+Sellers can attach short video walkarounds to listings (especially useful for liquidation pallets/lots or higher-value items where photos alone don't show condition well).
+
+### 4. Referral-to-Store-Credit Program
+Users can refer others to the platform and earn store credit (not cash) as a reward, incentivizing organic growth while keeping value inside the platform.
+
+### 5. "Sell With Us" Seller Onboarding
+A dedicated onboarding form/flow for prospective sellers to apply to sell on the marketplace — collects seller info, inventory type, volume, etc., and routes into an approval workflow.
+
+## Four-Phase Roadmap
+
+### Phase 1 — Core Storefront
+- Product catalog / listings (browse, search, filter, sort)
+- Product detail pages (photos, video walkarounds, Deal Score™, Amazon price compare)
+- Cart and checkout (no payments yet — can stub or use test mode)
+- Basic user authentication (buyer accounts)
+- Basic admin panel for managing listings
+
+### Phase 2 — Payments & Referrals
+- Live payment processing integration
+- Referral program (referral tracking, store credit issuance and redemption)
+- Order management (order history, status tracking)
+
+### Phase 3 — Seller Marketplace
+- "Sell With Us" onboarding form and approval workflow
+- Seller dashboard (manage own listings, view orders/payouts)
+- Multi-vendor support (multiple sellers, each with their own storefront presence within EZBZ)
+
+### Phase 4 — Mobile App
+- Native or cross-platform mobile app version of the marketplace
+- Push notifications (new deals, order updates, referral credit earned, etc.)
+
+## Notes for Implementation
+- No formal technical spec has been written yet — architecture, database schema, and tech stack decisions beyond the existing Next.js/Tailwind scaffold are open and should be proposed as part of Phase 1 planning.
+- Prioritize getting a working, demoable Phase 1 before layering in payments or seller features.
+- Amazon product photos/content should never be scraped or reproduced directly (copyright) — the price compare feature should link out rather than display Amazon's own images or copy.
