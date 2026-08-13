@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { SocialLinks } from "@/components/social-links";
+
 const SECTIONS: { title: string; links: { label: string; href: string }[] }[] = [
   {
     title: "Company",
@@ -39,6 +41,7 @@ export function SiteFooter() {
             Liquidation and auction deals with Deal Score™ ratings, so you know exactly what
             you&apos;re buying.
           </p>
+          <SocialLinks className="mt-4 flex items-center gap-2" />
         </div>
 
         {SECTIONS.map((section) => (

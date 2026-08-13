@@ -135,6 +135,18 @@ export async function getListingBySlug(slug: string) {
   });
 }
 
+export async function getNewestListings(limit = 3) {
+  return prisma.listing.findMany({
+    where: { status: "PUBLISHED" },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    include: {
+      category: true,
+      photos: { orderBy: { sortOrder: "asc" }, take: 1 },
+    },
+  });
+}
+
 export async function getTopDealListings(limit = 8) {
   return prisma.listing.findMany({
     where: { status: "PUBLISHED" },
