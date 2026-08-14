@@ -53,6 +53,7 @@ export default async function EditSellerListingPage({
     fundraiserId: "",
     fulfillmentPickup: listing.fulfillmentPickup,
     fulfillmentDelivery: listing.fulfillmentDelivery,
+    isPrebook: listing.isPrebook,
   };
 
   return (

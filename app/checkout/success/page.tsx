@@ -6,6 +6,8 @@ import { CheckCircle2, Clock } from "lucide-react";
 import { verifySession } from "@/lib/auth/dal";
 import { prisma } from "@/lib/prisma";
 import { formatCents } from "@/lib/format";
+import { getStripe } from "@/lib/stripe";
+import { fulfillCheckoutSession } from "@/lib/fulfillment";
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
@@ -25,13 +27,39 @@ export default async function CheckoutSuccessPage({
 
   if (orderIds.length === 0) notFound();
 
-  const orders = await prisma.order.findMany({
+  let orders = await prisma.order.findMany({
     where: { id: { in: orderIds }, userId: session.user.id },
     include: { items: true },
     orderBy: { createdAt: "asc" },
   });
 
   if (orders.length === 0) notFound();
+
+  // Fallback settlement. The Stripe webhook is the authoritative path, but it
+  // can be delayed — and in local development it can't reach the machine at
+  // all without `stripe listen`, which would leave orders stuck PENDING and no
+  // confirmation email ever sent. Ask Stripe directly whether this session was
+  // paid and, if so, settle it here. fulfillCheckoutSession is idempotent, so
+  // this races safely with the webhook.
+  const sessionId = orders[0]?.stripeCheckoutSessionId;
+  if (sessionId && orders.some((order) => order.paymentStatus !== "PAID")) {
+    try {
+      const stripe = getStripe();
+      const checkoutSession = await stripe.checkout.sessions.retrieve(sessionId);
+
+      if (checkoutSession.payment_status === "paid") {
+        await fulfillCheckoutSession(stripe, checkoutSession);
+        orders = await prisma.order.findMany({
+          where: { id: { in: orderIds }, userId: session.user.id },
+          include: { items: true },
+          orderBy: { createdAt: "asc" },
+        });
+      }
+    } catch (error) {
+      // Never block the receipt on this — the webhook remains the backstop.
+      console.error("Success-page settlement failed", error);
+    }
+  }
 
   const allPaid = orders.every((order) => order.paymentStatus === "PAID");
   const grandTotalCents = orders.reduce((sum, order) => sum + order.totalCents, 0);

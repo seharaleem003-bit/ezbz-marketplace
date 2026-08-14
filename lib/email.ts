@@ -111,6 +111,156 @@ export async function sendOrderConfirmationEmail(
   await sendSafely({ from: fromAddress(), to: recipientEmail, subject, html });
 }
 
+/**
+ * Tells the merchant a sale came in, so nothing sits unshipped waiting for
+ * someone to happen to open the dashboard. Sent per order — a multi-seller
+ * checkout notifies each seller about their own order only.
+ */
+export async function sendNewOrderNotificationEmail(
+  order: Order & { items: OrderItem[] },
+  recipientEmail: string,
+  { isPlatformOrder }: { isPlatformOrder: boolean }
+) {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const dashboardPath = isPlatformOrder ? "/admin/orders" : "/sell/orders";
+
+  const html = layout(
+    "You made a sale",
+    `
+      <p style="font-size: 14px;">
+        Order <strong>${order.orderNumber}</strong> has been paid and is ready to fulfill.
+      </p>
+      ${itemsTable(order.items)}
+      <table style="width: 100%; border-collapse: collapse; border-top: 1px solid #e2e8f0; margin-top: 12px;">
+        <tr>
+          <td style="padding-top: 8px; font-size: 14px; font-weight: 600;">Order total</td>
+          <td style="padding-top: 8px; font-size: 14px; font-weight: 600; text-align: right;">${formatCents(order.totalCents)}</td>
+        </tr>
+        <tr>
+          <td style="font-size: 13px; color: #64748b;">Your payout</td>
+          <td style="font-size: 13px; color: #64748b; text-align: right;">${formatCents(order.merchantPayoutCents)}</td>
+        </tr>
+      </table>
+      <p style="font-size: 13px; color: #64748b; margin-top: 16px;">
+        Ship to ${order.shippingName}, ${order.shippingLine1}, ${order.shippingCity}, ${order.shippingState} ${order.shippingPostal}
+      </p>
+      <a href="${appUrl}${dashboardPath}" style="display: inline-block; margin-top: 16px; padding: 10px 16px; background: #0f172a; color: #fff; text-decoration: none; border-radius: 8px; font-size: 14px;">Open your orders</a>
+    `
+  );
+
+  await sendSafely({
+    from: fromAddress(),
+    to: recipientEmail,
+    subject: `New order ${order.orderNumber} — ${formatCents(order.totalCents)}`,
+    html,
+  });
+}
+
+/** "The thing you asked about is on sale now" alert for a pre-book sign-up. */
+export async function sendBackInStockEmail(
+  recipientEmail: string,
+  listing: { title: string; slug: string }
+) {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const listingUrl = `${appUrl}/listings/${listing.slug}`;
+
+  const html = layout(
+    "It's available now",
+    `
+      <p style="font-size: 14px;">
+        Good news — <strong>${listing.title}</strong> is available to buy on EZBZ.
+      </p>
+      <p style="font-size: 13px; color: #64748b; margin-top: 8px;">
+        You asked to be told when this went on sale. Stock on releases like this
+        tends to move quickly.
+      </p>
+      <a href="${listingUrl}" style="display: inline-block; margin-top: 16px; padding: 10px 16px; background: #0f172a; color: #fff; text-decoration: none; border-radius: 8px; font-size: 14px;">View the listing</a>
+      <p style="font-size: 12px; color: #94a3b8; margin-top: 20px;">
+        This is a one-off alert for this item — you won't hear from us about it again.
+      </p>
+    `
+  );
+
+  await sendSafely({
+    from: fromAddress(),
+    to: recipientEmail,
+    subject: `${listing.title} is available now`,
+    html,
+  });
+}
+
+/** "You have a new message" alert for a listing conversation. */
+export async function sendNewMessageEmail({
+  recipientEmail,
+  senderName,
+  listingTitle,
+  body,
+  conversationId,
+}: {
+  recipientEmail: string;
+  senderName: string;
+  listingTitle: string;
+  body: string;
+  conversationId: string;
+}) {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+
+  // The message is user-authored, so it's escaped before going into the HTML.
+  const safeBody = body
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+
+  const html = layout(
+    `New message about ${listingTitle}`,
+    `
+      <p style="font-size: 14px;">
+        <strong>${senderName}</strong> sent you a message about
+        <strong>${listingTitle}</strong>.
+      </p>
+      <blockquote style="margin: 16px 0; padding: 12px 14px; background: #f4f6fa; border-left: 3px solid #c9a227; border-radius: 6px; font-size: 14px; white-space: pre-line;">${safeBody}</blockquote>
+      <a href="${appUrl}/account/messages/${conversationId}" style="display: inline-block; margin-top: 8px; padding: 10px 16px; background: #0f172a; color: #fff; text-decoration: none; border-radius: 8px; font-size: 14px;">Reply</a>
+      <p style="font-size: 12px; color: #94a3b8; margin-top: 20px;">
+        You'll only get one email per conversation until you've read it.
+      </p>
+    `
+  );
+
+  await sendSafely({
+    from: fromAddress(),
+    to: recipientEmail,
+    subject: `${senderName} messaged you about ${listingTitle}`,
+    html,
+  });
+}
+
+export async function sendPasswordResetEmail(recipientEmail: string, resetUrl: string) {
+  const html = layout(
+    "Reset your password",
+    `
+      <p style="font-size: 14px;">
+        We received a request to reset the password for your EZBZ account. Click the button
+        below to choose a new one. This link expires in 1 hour and can only be used once.
+      </p>
+      <a href="${resetUrl}" style="display: inline-block; margin-top: 16px; padding: 10px 16px; background: #0f172a; color: #fff; text-decoration: none; border-radius: 8px; font-size: 14px;">Reset password</a>
+      <p style="font-size: 13px; color: #64748b; margin-top: 20px;">
+        Requested a reset more than once? Only the newest email works — older links stop
+        working as soon as a new one is sent.
+      </p>
+      <p style="font-size: 13px; color: #64748b; margin-top: 12px;">
+        If you didn't request this, you can safely ignore this email — your password won't change.
+      </p>
+    `
+  );
+
+  await sendSafely({
+    from: fromAddress(),
+    to: recipientEmail,
+    subject: "Reset your EZBZ password",
+    html,
+  });
+}
+
 export async function sendRefundReceiptEmail(
   order: Order,
   recipientEmail: string,

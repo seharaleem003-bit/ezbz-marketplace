@@ -36,7 +36,11 @@ export async function getCart() {
       items: {
         include: {
           listing: {
-            include: { photos: { orderBy: { sortOrder: "asc" }, take: 1 } },
+            include: {
+              photos: { orderBy: { sortOrder: "asc" }, take: 1 },
+              // Needed to price delivery at checkout (see lib/shipping.ts).
+              category: { select: { slug: true } },
+            },
           },
         },
         orderBy: { id: "asc" },

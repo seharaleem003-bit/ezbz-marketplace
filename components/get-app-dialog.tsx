@@ -8,7 +8,13 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
-export function GetAppDialog({ qrCodeDataUrl }: { qrCodeDataUrl: string }) {
+export function GetAppDialog({
+  qrCodeDataUrl,
+  label,
+}: {
+  qrCodeDataUrl: string;
+  label: string;
+}) {
   return (
     <Dialog>
       <DialogTrigger
@@ -19,7 +25,7 @@ export function GetAppDialog({ qrCodeDataUrl }: { qrCodeDataUrl: string }) {
           />
         }
       >
-        Get the app
+        {label}
       </DialogTrigger>
       <DialogContent className="sm:max-w-xs">
         <DialogTitle className="text-center text-xl">

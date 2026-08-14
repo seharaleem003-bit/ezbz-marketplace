@@ -109,12 +109,82 @@ export interface EasyshipDestination {
   countryName: string;
 }
 
-// No per-listing weight/dimensions exist in the schema yet, so every parcel
-// ships as one conservative generic box. Fine for getting tracking numbers
-// and labels working end-to-end; real per-item weights would need a Listing
-// schema addition, which nothing has asked for yet.
+// Fallback parcel used when a listing has no measured weight/dimensions.
+// Listings carry their own values now (Listing.weightGrams and friends); these
+// only apply to older rows that predate those fields.
 const DEFAULT_ITEM_WEIGHT_KG = 1;
 const DEFAULT_DIMENSIONS_CM = { length: 30, width: 25, height: 15 };
+
+export interface EasyshipRateItem {
+  description: string;
+  quantity: number;
+  priceCents: number;
+  categorySlug: string | null;
+  weightKg: number;
+  dimensionsCm: { length: number; width: number; height: number };
+}
+
+export interface EasyshipRate {
+  courierName: string;
+  serviceName: string;
+  totalCents: number;
+  minDeliveryDays: number | null;
+  maxDeliveryDays: number | null;
+}
+
+// Quote-only: asks Easyship what this parcel would cost to ship without
+// creating a shipment. Used at checkout so the buyer sees a real rate before
+// paying, rather than after a label is bought.
+export async function getShippingRates({
+  origin,
+  destination,
+  items,
+}: {
+  origin: EasyshipOriginAddress;
+  destination: EasyshipDestination;
+  items: EasyshipRateItem[];
+}): Promise<EasyshipRate[]> {
+  const body = {
+    origin_address: {
+      line_1: origin.line1,
+      city: origin.city,
+      state: origin.state,
+      postal_code: origin.postalCode,
+      country_alpha2: origin.countryAlpha2,
+    },
+    destination_address: {
+      line_1: destination.line1,
+      city: destination.city,
+      state: destination.state,
+      postal_code: destination.postalCode,
+      country_alpha2: toAlpha2(destination.countryName),
+    },
+    parcels: [
+      {
+        items: items.map((item) => ({
+          description: item.description,
+          quantity: item.quantity,
+          actual_weight: item.weightKg,
+          declared_customs_value: Math.round(item.priceCents) / 100,
+          declared_currency: "USD",
+          hs_code: (item.categorySlug && CATEGORY_HS_CODES[item.categorySlug]) || DEFAULT_HS_CODE,
+          dimensions: item.dimensionsCm,
+        })),
+      },
+    ],
+  };
+
+  const data = await easyshipFetch("/rates", { method: "POST", body: JSON.stringify(body) });
+
+  const rates = Array.isArray(data?.rates) ? data.rates : [];
+  return rates.map((rate: Record<string, unknown>) => ({
+    courierName: String(rate.courier_name ?? "Carrier"),
+    serviceName: String(rate.courier_service_name ?? "Standard"),
+    totalCents: Math.round(Number(rate.total_charge ?? 0) * 100),
+    minDeliveryDays: rate.min_delivery_time == null ? null : Number(rate.min_delivery_time),
+    maxDeliveryDays: rate.max_delivery_time == null ? null : Number(rate.max_delivery_time),
+  }));
+}
 
 export async function createShipmentForOrder({
   origin,

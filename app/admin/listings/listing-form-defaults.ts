@@ -16,6 +16,7 @@ export interface ListingFormDefaults {
   fundraiserId: string;
   fulfillmentPickup: boolean;
   fulfillmentDelivery: boolean;
+  isPrebook: boolean;
 }
 
 export const EMPTY_LISTING_FORM_DEFAULTS: ListingFormDefaults = {
@@ -36,4 +37,5 @@ export const EMPTY_LISTING_FORM_DEFAULTS: ListingFormDefaults = {
   fundraiserId: "",
   fulfillmentPickup: false,
   fulfillmentDelivery: true,
+  isPrebook: false,
 };

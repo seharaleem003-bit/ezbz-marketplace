@@ -9,6 +9,15 @@ import { auth } from "@/lib/auth";
 const PROTECTED_PREFIXES = ["/checkout", "/account", "/admin"];
 const AUTH_ROUTES = ["/login", "/signup"];
 
+// Share-to-earn attribution. Capturing the ?ref= code here (rather than in a
+// page) means it survives the whole journey — browse, sign in, cart, checkout
+// — without every route having to thread it through.
+const SHARE_REF_COOKIE = "ezbz_ref";
+const SHARE_REF_PARAM = "ref";
+// No expiry on share attribution — 400 days is simply the longest max-age
+// Chrome honours, so it stands in for "doesn't expire".
+const ATTRIBUTION_WINDOW_SECONDS = 400 * 24 * 60 * 60;
+
 export default auth((req) => {
   const { nextUrl } = req;
   const isLoggedIn = !!req.auth;
@@ -27,7 +36,21 @@ export default auth((req) => {
     return NextResponse.redirect(new URL("/", nextUrl.origin));
   }
 
-  return NextResponse.next();
+  const response = NextResponse.next();
+
+  // Last-touch attribution: a newer share link overwrites an older one.
+  const refCode = nextUrl.searchParams.get(SHARE_REF_PARAM);
+  if (refCode) {
+    response.cookies.set(SHARE_REF_COOKIE, refCode, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: ATTRIBUTION_WINDOW_SECONDS,
+    });
+  }
+
+  return response;
 });
 
 export const config = {

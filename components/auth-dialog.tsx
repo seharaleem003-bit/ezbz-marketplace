@@ -150,7 +150,15 @@ function EmailStep({ onBack }: { onBack: () => void }) {
           <Input id="auth-dialog-email" name="email" type="email" autoComplete="email" required />
         </div>
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="auth-dialog-password">Password</Label>
+          <div className="flex items-center justify-between">
+            <Label htmlFor="auth-dialog-password">Password</Label>
+            <Link
+              href="/forgot-password"
+              className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
+            >
+              Forgot password?
+            </Link>
+          </div>
           <Input
             id="auth-dialog-password"
             name="password"

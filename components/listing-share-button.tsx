@@ -1,33 +1,37 @@
 "use client";
 
 import { Share2 } from "lucide-react";
-import { toast } from "sonner";
 
-export function ListingShareButton({ title }: { title: string }) {
-  async function handleShare() {
-    const url = window.location.href;
+import { ShareMenu, type ShareMenuLabels } from "@/components/share-menu";
 
-    if (navigator.share) {
-      try {
-        await navigator.share({ title, url });
-      } catch {
-        // user cancelled the share sheet — nothing to do
-      }
-      return;
-    }
-
-    await navigator.clipboard.writeText(url);
-    toast.success("Link copied to clipboard");
-  }
-
+export function ListingShareButton({
+  title,
+  url,
+  referralCode,
+  ariaLabel,
+  labels,
+}: {
+  title: string;
+  url: string;
+  referralCode?: string | null;
+  ariaLabel: string;
+  labels: ShareMenuLabels;
+}) {
   return (
-    <button
-      type="button"
-      aria-label="Share this listing"
-      onClick={handleShare}
-      className="text-muted-foreground transition-colors hover:text-foreground"
-    >
-      <Share2 className="size-6" />
-    </button>
+    <ShareMenu
+      url={url}
+      title={title}
+      referralCode={referralCode}
+      labels={labels}
+      trigger={
+        <button
+          type="button"
+          aria-label={ariaLabel}
+          className="text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <Share2 className="size-6" />
+        </button>
+      }
+    />
   );
 }

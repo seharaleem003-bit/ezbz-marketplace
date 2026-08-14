@@ -39,34 +39,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           Sellers
         </Link>
         <Link
-          href="/admin/fundraisers"
+          href="/admin/messages"
           className="rounded-md px-3 py-2 text-sm font-medium hover:bg-secondary"
         >
-          Fundraisers
-        </Link>
-        <Link
-          href="/admin/help-board"
-          className="rounded-md px-3 py-2 text-sm font-medium hover:bg-secondary"
-        >
-          Help Board
-        </Link>
-        <Link
-          href="/admin/partners"
-          className="rounded-md px-3 py-2 text-sm font-medium hover:bg-secondary"
-        >
-          Partners
-        </Link>
-        <Link
-          href="/admin/service-categories"
-          className="rounded-md px-3 py-2 text-sm font-medium hover:bg-secondary"
-        >
-          Service categories
-        </Link>
-        <Link
-          href="/admin/providers"
-          className="rounded-md px-3 py-2 text-sm font-medium hover:bg-secondary"
-        >
-          Providers
+          Messages
         </Link>
         <Link
           href="/admin/support"

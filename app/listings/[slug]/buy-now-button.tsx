@@ -6,7 +6,15 @@ import { useRouter } from "next/navigation";
 import { addToCartAction } from "@/app/cart/actions";
 import { Button } from "@/components/ui/button";
 
-export function BuyNowButton({ listingId, inStock }: { listingId: string; inStock: boolean }) {
+export function BuyNowButton({
+  listingId,
+  inStock,
+  labels,
+}: {
+  listingId: string;
+  inStock: boolean;
+  labels: { buyNow: string; outOfStock: string };
+}) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
@@ -27,7 +35,7 @@ export function BuyNowButton({ listingId, inStock }: { listingId: string; inStoc
       onClick={handleClick}
       className="flex-1 bg-gold-500 text-navy-900 hover:bg-gold-400"
     >
-      {isPending ? "Preparing checkout…" : inStock ? "Buy now" : "Out of stock"}
+      {isPending ? "…" : inStock ? labels.buyNow : labels.outOfStock}
     </Button>
   );
 }

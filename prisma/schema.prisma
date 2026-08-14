@@ -44,9 +44,31 @@ model User {
   contributions HelpBoardContribution[]
   sellerFlagsCreated SellerFlag[]
   nonprofitPartnerProfile NonprofitPartner?
+  passwordResetTokens PasswordResetToken[]
+  shareReferredOrders Order[]              @relation("ShareReferrals")
+  prebookNotifyRequests PrebookNotifyRequest[]
+  conversationsAsBuyer  Conversation[]         @relation("ConversationBuyer")
+  conversationsAsSeller Conversation[]         @relation("ConversationSeller")
+  messagesSent          Message[]              @relation("MessageSender")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// Single-use, time-limited password reset links. Only the SHA-256 hash of the
+// token is stored — the raw token exists solely in the emailed URL, so a
+// database leak can't be replayed to take over accounts.
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 // Standard Auth.js Prisma adapter models.
@@ -194,6 +216,83 @@ model Category {
   name     String
   slug     String    @unique
   listings Listing[]
+
+  // Self-relation forming the category tree: Pets > Dog play pens > Metal.
+  // Depth isn't constrained here — the UI walks whatever nesting exists.
+  // Listings attach to the most specific category they belong to; browsing a
+  // parent rolls up everything beneath it (see collectCategoryIds).
+  parentId String?
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children Category[] @relation("CategoryTree")
+
+  // Controls ordering within a parent; ties fall back to name.
+  sortOrder Int @default(0)
+
+  @@index([parentId])
+}
+
+// "Notify me when available" sign-ups against a pre-book listing. Rows are
+// kept after notifying (rather than deleted) so a re-release can't email the
+// same person twice. Anonymous sign-ups are allowed — userId is set only when
+// the visitor happened to be signed in.
+model PrebookNotifyRequest {
+  id        String  @id @default(cuid())
+  listingId String
+  listing   Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  email String
+  phone String?
+
+  notifiedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  // One sign-up per address per listing — re-submitting updates the phone
+  // rather than creating a duplicate to email later.
+  @@unique([listingId, email])
+  @@index([listingId, notifiedAt])
+}
+
+// Buyer <-> seller thread about a specific listing. EZBZ-direct inventory has
+// no seller, so sellerUserId is null there and the platform answers instead —
+// the thread still belongs to the listing either way.
+model Conversation {
+  id        String  @id @default(cuid())
+  listingId String
+  listing   Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  buyerId String
+  buyer   User   @relation("ConversationBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
+
+  sellerUserId String?
+  sellerUser   User?   @relation("ConversationSeller", fields: [sellerUserId], references: [id], onDelete: SetNull)
+
+  messages  Message[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // One thread per buyer per listing — re-opening chat continues it rather
+  // than starting a parallel conversation the seller has to track separately.
+  @@unique([listingId, buyerId])
+  @@index([sellerUserId])
+  @@index([buyerId])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  senderId String
+  sender   User   @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+
+  body   String
+  readAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([conversationId, createdAt])
 }
 
 enum ListingCondition {
@@ -241,6 +340,23 @@ model Listing {
 
   fulfillmentPickup   Boolean @default(false)
   fulfillmentDelivery Boolean @default(true)
+
+  // Pre-book: not yet in stock, reservable now at a discount. inventoryQty can
+  // legitimately be 0 on these — the sale is a reservation against the release,
+  // not a shipment from current stock.
+  isPrebook        Boolean   @default(false)
+  prebookReleaseAt DateTime?
+
+  notifyRequests PrebookNotifyRequest[]
+  conversations  Conversation[]
+
+  // Parcel data for live shipping rates. Nullable because existing listings
+  // predate it — quoting falls back to flat estimates for any cart containing
+  // a listing that hasn't been measured yet (see lib/shipping.ts).
+  weightGrams Int?
+  lengthCm    Int?
+  widthCm     Int?
+  heightCm    Int?
 
   photos     ListingPhoto[]
   videos     ListingVideo[]
@@ -369,6 +485,30 @@ model Order {
   stripePaymentIntentId   String?
   stripeTransferId        String? @unique
 
+  // What the buyer was actually charged for delivery, snapshotted at order
+  // time. 0 for local pickup and for orders over the free-shipping threshold.
+  shippingCents Int @default(0)
+
+  // Carrier transit window from the Easyship quote, in days. Null when the
+  // order was priced from a flat estimate (no measured parcel) — the order
+  // page then falls back to a generic window rather than showing nothing.
+  estimatedDeliveryMinDays Int?
+  estimatedDeliveryMaxDays Int?
+
+  // 10% off the pre-book lines in this order, snapshotted at checkout so the
+  // receipt still reconciles if the rate ever changes. Deducted from the
+  // platform's commission, not the seller's payout.
+  prebookDiscountCents Int @default(0)
+
+  // Share-to-earn attribution: the user whose share link brought this buyer
+  // in, and the credit they earn once the order is paid. Funded half from the
+  // platform's commission and half from the seller's payout, so both figures
+  // above are already net of it. Paid as store credit by the Stripe webhook.
+  shareReferrerUserId  String?
+  shareReferrer        User?   @relation("ShareReferrals", fields: [shareReferrerUserId], references: [id], onDelete: SetNull)
+  shareCommissionCents Int     @default(0)
+  shareCommissionPaidAt DateTime?
+
   shippingMethod  ShippingMethod @default(DELIVERY)
   shippingName    String
   shippingLine1   String
@@ -415,6 +555,7 @@ enum CreditReason {
   REFERRAL_BONUS
   REDEEMED_AT_CHECKOUT
   ADMIN_ADJUSTMENT
+  SHARE_COMMISSION
 }
 
 // Append-only ledger — a user's balance is the sum of their rows, never a

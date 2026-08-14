@@ -21,6 +21,7 @@ export default async function NewListingPage() {
     <div>
       <h1 className="mb-6 text-2xl font-heading font-semibold">New listing</h1>
       <ListingForm
+        showPrebook
         action={createListingAction}
         categories={categories}
         fundraisers={fundraisers}

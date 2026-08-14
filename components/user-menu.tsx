@@ -2,7 +2,16 @@
 
 import Link from "next/link";
 import { signOut } from "next-auth/react";
-import { Bell, Gift, LogOut, MapPin, Package, Shield, User as UserIcon } from "lucide-react";
+import {
+  Bell,
+  Gift,
+  LogOut,
+  MapPin,
+  MessageCircle,
+  Package,
+  Shield,
+  User as UserIcon,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -39,6 +48,10 @@ export function UserMenu({
         <DropdownMenuItem render={<Link href="/account/orders" />}>
           <Package />
           My orders
+        </DropdownMenuItem>
+        <DropdownMenuItem render={<Link href="/account/messages" />}>
+          <MessageCircle />
+          Messages
         </DropdownMenuItem>
         <DropdownMenuItem render={<Link href="/account/referrals" />}>
           <Gift />

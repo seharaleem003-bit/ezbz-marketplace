@@ -1,9 +1,11 @@
-const MESSAGE = "Get 10% off your first purchase when you buy through the EZBZ app — download now";
+import { getDictionary } from "@/lib/i18n";
 
-export function PromoBanner() {
+export async function PromoBanner() {
+  const dict = await getDictionary();
+
   const track = Array.from({ length: 4 }, (_, i) => (
     <span key={i} className="mx-8 shrink-0 text-sm font-medium tracking-wide">
-      {MESSAGE}
+      {dict.promo.banner}
     </span>
   ));
 

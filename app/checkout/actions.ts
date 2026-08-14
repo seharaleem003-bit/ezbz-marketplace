@@ -11,6 +11,9 @@ import { checkoutSchema, shippingMethodOnlySchema, type ResolvedShipping } from 
 import { addressSchema } from "@/lib/validation/address";
 import { resolveCommissionBps, splitAmountCents } from "@/lib/commission";
 import { getStoreCreditBalanceCents } from "@/lib/store-credit";
+import { quoteShipping } from "@/lib/shipping";
+import { resolveShareAttribution } from "@/lib/share-attribution";
+import { totalPrebookDiscount } from "@/lib/prebook";
 
 export type CheckoutActionState = { error?: string } | undefined;
 
@@ -122,13 +125,23 @@ export async function placeOrderAction(
   let orderIds: string[];
   let totalCreditAppliedCents = 0;
   let roundUpCents = 0;
+  let shippingCents = 0;
+  let deliveryMinDays: number | null = null;
+  let deliveryMaxDays: number | null = null;
+  let prebookDiscountCents = 0;
 
   try {
     orderIds = await prisma.$transaction(async (tx) => {
       const cart = await tx.cart.findUnique({
         where: { id: cartId },
         include: {
-          items: { include: { listing: { include: { seller: true, fundraiser: true } } } },
+          items: {
+            include: {
+              listing: {
+                include: { seller: true, fundraiser: true, category: { select: { slug: true } } },
+              },
+            },
+          },
         },
       });
 
@@ -198,8 +211,59 @@ export async function placeOrderAction(
       // next whole dollar (0 if it's already exact). Goes entirely to Help
       // Board, not split with any seller — see the Stripe line-item comment
       // below for how that's kept out of the marketplace split accounting.
+      // 10% off the pre-book lines, computed from live listing data so a
+       // client-side price can't inflate the discount.
+      prebookDiscountCents = totalPrebookDiscount(
+        cart.items.map((item) => ({
+          isPrebook: item.listing.isPrebook,
+          priceCents: item.listing.priceCents,
+          quantity: item.quantity,
+        }))
+      );
+
       const amountAfterCredit = combinedSubtotal - creditToApply;
       roundUpCents = applyRoundUp ? (100 - (amountAfterCredit % 100)) % 100 : 0;
+
+      // Priced server-side off live listing data — never trusted from the
+      // client. Uses the pre-credit subtotal so spending store credit can't
+      // drop an order back under the free-shipping threshold.
+      const quote = await quoteShipping({
+        items: cart.items.map((item) => ({
+          title: item.listing.title,
+          quantity: item.quantity,
+          priceCents: item.listing.priceCents,
+          categorySlug: item.listing.category?.slug ?? null,
+          weightGrams: item.listing.weightGrams,
+          lengthCm: item.listing.lengthCm,
+          widthCm: item.listing.widthCm,
+          heightCm: item.listing.heightCm,
+        })),
+        subtotalCents: combinedSubtotal,
+        isPickup: shippingMethod === "PICKUP",
+        destination: shipping
+          ? {
+              contactName: shipping.shippingName,
+              contactEmail: session.user.email ?? "",
+              line1: shipping.shippingLine1,
+              line2: shipping.shippingLine2,
+              city: shipping.shippingCity,
+              state: shipping.shippingState,
+              postalCode: shipping.shippingPostal,
+              countryName: shipping.shippingCountry,
+            }
+          : null,
+      });
+      shippingCents = quote.shippingCents;
+      // Only present on a live carrier quote; stays null for flat estimates.
+      deliveryMinDays = quote.estimatedDaysMin ?? null;
+      deliveryMaxDays = quote.estimatedDaysMax ?? null;
+
+      // Resolved once for the checkout, then applied to the first order group
+      // so a multi-seller cart pays the sharer once, not once per merchant.
+      const attribution = await resolveShareAttribution({
+        buyerUserId: session.user.id,
+        subtotalCents: combinedSubtotal,
+      });
 
       const createdOrderIds: string[] = [];
       let creditRemaining = creditToApply;
@@ -225,10 +289,24 @@ export async function placeOrderAction(
           fundraiserCommissionBps: group.fundraiserCommissionBps,
           sellerFirstSaleUsed: group.sellerFirstSaleUsed,
         });
-        const { platformFeeCents, merchantPayoutCents } = splitAmountCents(
-          subtotalCents,
-          commissionBps
-        );
+        const split = splitAmountCents(subtotalCents, commissionBps);
+
+        // The sharer's 2% lands entirely on the first group: 1% out of the
+        // platform's commission, 1% out of the seller's payout. Clamped so a
+        // tiny or zero-commission order can never push either side negative.
+        const isFirstGroup = i === 0;
+        const platformCut =
+          isFirstGroup && attribution
+            ? Math.min(attribution.platformPortionCents, split.platformFeeCents)
+            : 0;
+        const sellerCut =
+          isFirstGroup && attribution
+            ? Math.min(attribution.sellerPortionCents, split.merchantPayoutCents)
+            : 0;
+
+        const platformFeeCents = split.platformFeeCents - platformCut;
+        const merchantPayoutCents = split.merchantPayoutCents - sellerCut;
+        const shareCommissionCents = platformCut + sellerCut;
 
         const order = await tx.order.create({
           data: {
@@ -240,10 +318,24 @@ export async function placeOrderAction(
             subtotalCents,
             storeCreditAppliedCents: creditForGroup,
             roundUpCents: i === 0 ? roundUpCents : 0,
-            totalCents: subtotalCents - creditForGroup,
+            // Shipping is quoted once for the whole checkout, so it lands on
+            // the first order rather than being split across merchant groups.
+            shippingCents: i === 0 ? shippingCents : 0,
+            estimatedDeliveryMinDays: deliveryMinDays,
+            estimatedDeliveryMaxDays: deliveryMaxDays,
+            // Like shipping, this is a whole-checkout figure, so it lands on
+            // the first order rather than being split across merchant groups.
+            prebookDiscountCents: i === 0 ? prebookDiscountCents : 0,
+            totalCents:
+              subtotalCents -
+              creditForGroup +
+              (i === 0 ? shippingCents - prebookDiscountCents : 0),
             commissionBps,
             platformFeeCents,
             merchantPayoutCents,
+            shareReferrerUserId:
+              shareCommissionCents > 0 ? attribution?.referrerUserId ?? null : null,
+            shareCommissionCents,
             shippingMethod,
             shippingName: shipping.shippingName,
             shippingLine1: shipping.shippingLine1,
@@ -332,13 +424,22 @@ export async function placeOrderAction(
 
   const stripe = getStripe();
 
+  // Stripe allows a single coupon per Checkout Session, so store credit and
+  // the pre-book discount are combined into one — the order record keeps them
+  // as separate line items for the receipt.
   let discounts: { coupon: string }[] | undefined;
-  if (totalCreditAppliedCents > 0) {
+  const totalDiscountCents = totalCreditAppliedCents + prebookDiscountCents;
+  if (totalDiscountCents > 0) {
+    const parts = [
+      totalCreditAppliedCents > 0 ? "store credit" : null,
+      prebookDiscountCents > 0 ? "10% pre-book discount" : null,
+    ].filter(Boolean);
+
     const coupon = await stripe.coupons.create({
-      amount_off: totalCreditAppliedCents,
+      amount_off: totalDiscountCents,
       currency: "usd",
       duration: "once",
-      name: "EZBZ store credit",
+      name: `EZBZ ${parts.join(" + ")}`,
     });
     discounts = [{ coupon: coupon.id }];
   }
@@ -375,6 +476,20 @@ export async function placeOrderAction(
                 currency: "usd",
                 unit_amount: roundUpCents,
                 product_data: { name: "Round up for Help Board" },
+              },
+            },
+          ]
+        : []),
+      // Same reasoning as the round-up above: shipping is a platform-side
+      // charge, so it stays out of the per-seller payout split.
+      ...(shippingCents > 0
+        ? [
+            {
+              quantity: 1,
+              price_data: {
+                currency: "usd",
+                unit_amount: shippingCents,
+                product_data: { name: "Shipping" },
               },
             },
           ]

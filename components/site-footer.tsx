@@ -1,46 +1,55 @@
+import Image from "next/image";
 import Link from "next/link";
 
 import { SocialLinks } from "@/components/social-links";
+import { getDictionary } from "@/lib/i18n";
 
-const SECTIONS: { title: string; links: { label: string; href: string }[] }[] = [
-  {
-    title: "Company",
-    links: [
-      { label: "About Us", href: "/about" },
-      { label: "Contact Us", href: "/contact" },
-      { label: "Help Board", href: "/help-board" },
-    ],
-  },
-  {
-    title: "Shop",
-    links: [
-      { label: "Browse deals", href: "/listings" },
-      { label: "Best Deal Scores", href: "/listings?sort=deal-score-desc" },
-      { label: "Wishlist", href: "/wishlist" },
-      { label: "Cart", href: "/cart" },
-    ],
-  },
-  {
-    title: "Legal",
-    links: [
-      { label: "Terms of Service", href: "/terms" },
-      { label: "Privacy Policy", href: "/privacy" },
-    ],
-  },
-];
+export async function SiteFooter() {
+  const dict = await getDictionary();
 
-export function SiteFooter() {
+  const SECTIONS: { title: string; links: { label: string; href: string }[] }[] = [
+    {
+      title: dict.footer.company,
+      links: [
+        { label: dict.footer.aboutUs, href: "/about" },
+        { label: dict.footer.contactUs, href: "/contact" },
+        { label: dict.footer.startSelling, href: "/sell" },
+        { label: dict.footer.helpBoard, href: "/help-board" },
+      ],
+    },
+    {
+      title: dict.footer.shop,
+      links: [
+        { label: dict.footer.browseDeals, href: "/listings" },
+        { label: dict.footer.bestDealScores, href: "/listings?sort=deal-score-desc" },
+        { label: dict.footer.wishlist, href: "/wishlist" },
+        { label: dict.footer.cart, href: "/cart" },
+      ],
+    },
+    {
+      title: dict.footer.legal,
+      links: [
+        { label: dict.footer.terms, href: "/terms" },
+        { label: dict.footer.privacy, href: "/privacy" },
+      ],
+    },
+  ];
+
   return (
     <footer className="border-t bg-navy-900 text-white">
       <div className="mx-auto grid w-full max-w-6xl grid-cols-2 gap-8 px-4 py-12 sm:grid-cols-4">
         <div className="col-span-2 sm:col-span-1">
-          <Link href="/" className="text-lg font-heading font-semibold tracking-tight">
-            EZ<span className="text-gold-400">BZ</span>
+          <Link href="/" aria-label="EZBZ home" className="inline-block">
+            {/* Light variant — the navy half of the wordmark is invisible on the navy footer. */}
+            <Image
+              src="/logo-light.png"
+              alt="EZBZ"
+              width={1378}
+              height={554}
+              className="h-9 w-auto"
+            />
           </Link>
-          <p className="mt-3 max-w-xs text-sm text-white/60">
-            Liquidation and auction deals with Deal Score™ ratings, so you know exactly what
-            you&apos;re buying.
-          </p>
+          <p className="mt-3 max-w-xs text-sm text-white/60">{dict.footer.tagline}</p>
           <SocialLinks className="mt-4 flex items-center gap-2" />
         </div>
 
@@ -65,7 +74,7 @@ export function SiteFooter() {
 
       <div className="border-t border-white/10">
         <div className="mx-auto max-w-6xl px-4 py-4 text-xs text-white/50">
-          &copy; {new Date().getFullYear()} EZBZ Marketplace. All rights reserved.
+          &copy; {new Date().getFullYear()} EZBZ Marketplace. {dict.footer.rights}
         </div>
       </div>
     </footer>

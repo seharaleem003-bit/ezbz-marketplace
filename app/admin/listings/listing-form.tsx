@@ -45,6 +45,9 @@ export function ListingForm({
   defaults = EMPTY_LISTING_FORM_DEFAULTS,
   submitLabel = "Save listing",
   showSaveAndAddAnother = false,
+  // Pre-book commits the platform to future stock, so it stays an admin-only
+  // control — the seller-facing action doesn't read this field.
+  showPrebook = false,
 }: {
   action: (prevState: ListingFormState, formData: FormData) => Promise<ListingFormState>;
   categories: { id: string; name: string }[];
@@ -52,6 +55,7 @@ export function ListingForm({
   defaults?: ListingFormDefaults;
   submitLabel?: string;
   showSaveAndAddAnother?: boolean;
+  showPrebook?: boolean;
 }) {
   const [state, formAction, pending] = useActionState<ListingFormState, FormData>(
     action,
@@ -320,6 +324,29 @@ export function ListingForm({
           Choose which fulfillment options buyers see at checkout for this listing.
         </p>
       </div>
+
+      {showPrebook ? (
+        <div className="flex flex-col gap-1.5">
+          <Label>Pre-book</Label>
+          <div className="flex items-center gap-2">
+            <input
+              id="isPrebook"
+              type="checkbox"
+              name="isPrebook"
+              defaultChecked={defaults.isPrebook}
+              className="size-4 accent-gold-500"
+            />
+            <Label htmlFor="isPrebook" className="font-normal">
+              Sell as a pre-book reservation (10% off at checkout)
+            </Label>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Buyers see &ldquo;Pre-book now&rdquo; and &ldquo;Notify me&rdquo; instead of the
+            normal buy buttons. Unticking this on a published listing emails everyone on the
+            notify list that it&apos;s available.
+          </p>
+        </div>
+      ) : null}
 
       {fundraisers && fundraisers.length > 0 ? (
         <div className="flex flex-col gap-1.5">

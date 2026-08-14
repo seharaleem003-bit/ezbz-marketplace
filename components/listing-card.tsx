@@ -1,28 +1,52 @@
 import Image from "next/image";
 import Link from "next/link";
+import { Share2 } from "lucide-react";
 
 import { DealScoreBadge } from "@/components/deal-score-badge";
+import { DiscountBadge, calculateDiscount } from "@/components/discount-badge";
+import { CornerRibbon, ribbonFor } from "@/components/corner-ribbon";
+import { ShareMenu } from "@/components/share-menu";
 import { formatCents, formatCondition } from "@/lib/format";
+import { getDictionary } from "@/lib/i18n";
 
 export interface ListingCardData {
   slug: string;
   title: string;
   priceCents: number;
   retailPriceCents: number | null;
+  amazonPriceCents?: number | null;
   condition: string;
   dealScore: number;
+  isPrebook?: boolean;
+  inventoryQty?: number;
+  prebookReleaseAt?: Date | null;
   category: { name: string };
   photos: { url: string; altText: string | null }[];
 }
 
-export function ListingCard({ listing }: { listing: ListingCardData }) {
+export async function ListingCard({
+  listing,
+  referralCode,
+}: {
+  listing: ListingCardData;
+  referralCode?: string | null;
+}) {
+  const dict = await getDictionary();
   const photo = listing.photos[0];
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const listingUrl = `${appUrl}/listings/${listing.slug}`;
+  const discount = calculateDiscount({
+    priceCents: listing.priceCents,
+    amazonPriceCents: listing.amazonPriceCents,
+    retailPriceCents: listing.retailPriceCents,
+  });
+  const ribbon = ribbonFor(listing);
 
   return (
-    <Link
-      href={`/listings/${listing.slug}`}
-      className="group flex flex-col overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10 transition-shadow hover:shadow-lg"
-    >
+    // The share control can't live inside the card's <Link> (nested
+    // interactive elements), so the wrapper is a plain div and the link
+    // covers the card via an inset overlay.
+    <div className="group relative flex flex-col overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10 transition-shadow hover:shadow-lg">
       <div className="relative aspect-4/3 w-full overflow-hidden bg-muted">
         {photo ? (
           <Image
@@ -33,9 +57,41 @@ export function ListingCard({ listing }: { listing: ListingCardData }) {
             className="object-cover transition-transform duration-300 group-hover:scale-105"
           />
         ) : null}
-        <DealScoreBadge score={listing.dealScore} size="sm" className="absolute left-2 top-2" />
+        {ribbon ? (
+          <CornerRibbon
+            kind={ribbon}
+            label={ribbon === "sold" ? dict.listing.ribbonSold : dict.listing.ribbonPrebook}
+          />
+        ) : null}
+        {/* Nudged right when a ribbon occupies the corner. */}
+        <DealScoreBadge
+          score={listing.dealScore}
+          size="sm"
+          className={ribbon ? "absolute right-2 top-11" : "absolute left-2 top-2"}
+        />
+        {discount ? (
+          <DiscountBadge
+            discount={discount}
+            size="sm"
+            className="absolute bottom-2 left-2"
+            labels={{
+              off: dict.listing.off,
+              vsAmazon: dict.listing.vsAmazon,
+              offRetail: dict.listing.offRetail,
+            }}
+          />
+        ) : null}
       </div>
+
       <div className="flex flex-1 flex-col gap-1.5 p-3">
+        {listing.isPrebook ? (
+          <p className="text-xs font-semibold uppercase tracking-wide text-gold-600">
+            {dict.home.prebookBadge}
+            {listing.prebookReleaseAt
+              ? ` · ${dict.home.releases} ${listing.prebookReleaseAt.toLocaleDateString()}`
+              : ""}
+          </p>
+        ) : null}
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
           {listing.category.name} &middot; {formatCondition(listing.condition)}
         </p>
@@ -49,6 +105,30 @@ export function ListingCard({ listing }: { listing: ListingCardData }) {
           ) : null}
         </div>
       </div>
-    </Link>
+
+      <Link
+        href={`/listings/${listing.slug}`}
+        className="absolute inset-0 z-10"
+        aria-label={listing.title}
+      />
+
+      <div className="absolute right-2 top-2 z-20">
+        <ShareMenu
+          url={listingUrl}
+          title={listing.title}
+          referralCode={referralCode}
+          labels={dict.share}
+          trigger={
+            <button
+              type="button"
+              aria-label={`${dict.listing.shareLabel}: ${listing.title}`}
+              className="flex size-8 items-center justify-center rounded-full bg-background/90 text-foreground shadow-sm ring-1 ring-foreground/10 backdrop-blur transition-colors hover:bg-background"
+            >
+              <Share2 className="size-4" />
+            </button>
+          }
+        />
+      </div>
+    </div>
   );
 }

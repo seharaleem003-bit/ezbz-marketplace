@@ -3,13 +3,17 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import QRCode from "qrcode";
 import type { Metadata } from "next";
-import { Flag, Heart } from "lucide-react";
+import { Flag, Heart, Share2 } from "lucide-react";
 
 import { getListingBySlug } from "@/lib/listings";
 import { formatCents, formatCondition, formatJoinedDate, formatRelativeTime } from "@/lib/format";
 import { getOptionalSession } from "@/lib/auth/dal";
+import { getDictionary, getLocale, t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { DealScoreBadge } from "@/components/deal-score-badge";
+import { DiscountBadge, calculateDiscount } from "@/components/discount-badge";
+import { CornerRibbon, ribbonFor } from "@/components/corner-ribbon";
+import { NotifyMeDialog } from "@/components/notify-me-dialog";
 import { AmazonPriceCompare } from "@/components/amazon-price-compare";
 import { VideoWalkaround } from "@/components/video-walkaround";
 import { ListingHeartButton } from "@/components/listing-heart-button";
@@ -18,6 +22,10 @@ import { SupportTicketDialog } from "@/components/support-ticket-dialog";
 import { SellerTrustBadges } from "@/components/seller-trust-badges";
 import { AddToCartForm } from "./add-to-cart-form";
 import { BuyNowButton } from "./buy-now-button";
+import { PrebookPanel } from "./prebook-panel";
+import { ChatSellerDialog } from "./chat-seller-dialog";
+import { QUICK_MESSAGES, QUICK_MESSAGES_ES } from "@/lib/messaging";
+import { prebookDiscountFor } from "@/lib/prebook";
 
 export const dynamic = "force-dynamic";
 
@@ -45,10 +53,20 @@ export default async function ListingDetailPage({
   const listing = await getListingBySlug(slug);
   if (!listing) notFound();
 
+  const dict = await getDictionary();
   const session = await getOptionalSession();
   const existingWatch = session?.user
     ? await prisma.watch.findUnique({
         where: { userId_listingId: { userId: session.user.id, listingId: listing.id } },
+      })
+    : null;
+
+  // Only signed-in users get a tagged share link — there's nobody to pay
+  // otherwise, so anonymous shares stay plain.
+  const viewer = session?.user
+    ? await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { referralCode: true },
       })
     : null;
 
@@ -61,6 +79,16 @@ export default async function ListingDetailPage({
     width: 240,
     color: { dark: "#0a1930", light: "#ffffff" },
   });
+
+  const discount = calculateDiscount({
+    priceCents: listing.priceCents,
+    amazonPriceCents: listing.amazonPriceCents,
+    retailPriceCents: listing.retailPriceCents,
+  });
+
+  const locale = await getLocale();
+  const prebookSavingCents = listing.isPrebook ? prebookDiscountFor(listing.priceCents) : 0;
+  const ribbon = ribbonFor(listing);
 
   const sellerName = listing.seller?.displayName ?? "EZBZ";
   const locationLabel = listing.seller
@@ -82,7 +110,18 @@ export default async function ListingDetailPage({
               className="object-cover"
             />
           ) : null}
-          <DealScoreBadge score={listing.dealScore} size="lg" className="absolute left-3 top-3" />
+          {ribbon ? (
+            <CornerRibbon
+              kind={ribbon}
+              label={ribbon === "sold" ? dict.listing.ribbonSold : dict.listing.ribbonPrebook}
+              className="size-32"
+            />
+          ) : null}
+          <DealScoreBadge
+            score={listing.dealScore}
+            size="lg"
+            className={ribbon ? "absolute right-3 top-3" : "absolute left-3 top-3"}
+          />
         </div>
         {restPhotos.length > 0 ? (
           <div className="grid grid-cols-4 gap-2">
@@ -106,12 +145,22 @@ export default async function ListingDetailPage({
 
       <div className="flex flex-col gap-4">
         <div className="flex items-start justify-between gap-4">
-          <div className="flex items-baseline gap-3">
+          <div className="flex flex-wrap items-baseline gap-3">
             <span className="text-3xl font-semibold">{formatCents(listing.priceCents)}</span>
             {listing.retailPriceCents && listing.retailPriceCents > listing.priceCents ? (
               <span className="text-lg text-muted-foreground line-through">
                 {formatCents(listing.retailPriceCents)}
               </span>
+            ) : null}
+            {discount ? (
+              <DiscountBadge
+                discount={discount}
+                labels={{
+                  off: dict.listing.off,
+                  vsAmazon: dict.listing.vsAmazon,
+                  offRetail: dict.listing.offRetail,
+                }}
+              />
             ) : null}
           </div>
 
@@ -130,7 +179,13 @@ export default async function ListingDetailPage({
                 <Heart className="size-6" />
               </Link>
             )}
-            <ListingShareButton title={listing.title} />
+            <ListingShareButton
+              title={listing.title}
+              url={listingUrl}
+              referralCode={viewer?.referralCode}
+              ariaLabel={dict.listing.shareLabel}
+              labels={dict.share}
+            />
             <SupportTicketDialog
               trigger={<Flag className="size-6" />}
               triggerClassName="text-muted-foreground hover:text-foreground"
@@ -179,25 +234,117 @@ export default async function ListingDetailPage({
         ) : null}
 
         <AmazonPriceCompare
+          title={listing.title}
           ezbzPriceCents={listing.priceCents}
           amazonPriceCents={listing.amazonPriceCents}
           amazonUrl={listing.amazonUrl}
           amazonPriceCheckedAt={listing.amazonPriceCheckedAt}
         />
 
-        <div className="flex gap-3">
-          <SupportTicketDialog
-            trigger="Ask"
-            triggerClassName="flex h-10 flex-1 items-center justify-center rounded-lg border border-gold-500 text-sm font-semibold text-gold-600 hover:bg-gold-500/10"
-            dialogTitle={`Ask about "${listing.title}"`}
-            description="Send a question to our team about this listing and we'll reply by email."
-            defaultMessage={`Question about: ${listing.title} (${listingUrl})\n\n`}
-            submitLabel="Send question"
+        {listing.isPrebook ? (
+          <PrebookPanel
+            listingId={listing.id}
+            releaseAt={
+              listing.prebookReleaseAt
+                ? listing.prebookReleaseAt.toLocaleDateString(
+                    locale === "es" ? "es-ES" : "en-US",
+                    { month: "long", day: "numeric", year: "numeric" }
+                  )
+                : null
+            }
+            fullPriceLabel={formatCents(listing.priceCents)}
+            discountedPriceLabel={formatCents(listing.priceCents - prebookSavingCents)}
+            savingLabel={t(dict.listing.youSave, { amount: formatCents(prebookSavingCents) })}
+            deliveryNote={dict.listing.prebookDeliveryNote}
+            labels={{
+              prebookNow: dict.listing.prebookNow,
+              notifyMe: dict.listing.notifyMe,
+              reserving: dict.listing.reserving,
+              releaseOn: dict.listing.releaseOn,
+              discountNote: dict.listing.prebookDiscountNote,
+              notifyTitle: dict.listing.notifyTitle,
+              notifyBlurb: dict.listing.notifyBlurb,
+              email: dict.listing.notifyEmail,
+              phone: dict.listing.notifyPhone,
+              phoneOptional: dict.listing.notifyPhoneOptional,
+              submit: dict.listing.notifySubmit,
+              submitting: dict.listing.notifySubmitting,
+              successTitle: dict.listing.notifySuccessTitle,
+              successBlurb: dict.listing.notifySuccessBlurb,
+            }}
           />
-          <BuyNowButton listingId={listing.id} inStock={inStock} />
-        </div>
+        ) : (
+          <>
+            <div className="flex gap-3">
+              <ChatSellerDialog
+                listingId={listing.id}
+                sellerName={sellerName}
+                quickMessages={locale === "es" ? QUICK_MESSAGES_ES : QUICK_MESSAGES}
+                labels={{
+                  trigger: dict.listing.chatTrigger,
+                  title: dict.listing.chatTitle,
+                  blurb: dict.listing.chatBlurb,
+                  placeholder: dict.listing.chatPlaceholder,
+                  send: dict.listing.chatSend,
+                  sending: dict.listing.chatSending,
+                  sentTitle: dict.listing.chatSentTitle,
+                  sentBlurb: dict.listing.chatSentBlurb,
+                  viewMessages: dict.listing.chatViewMessages,
+                  signInPrompt: dict.listing.chatSignInPrompt,
+                  signIn: dict.listing.chatSignIn,
+                }}
+              />
+              <BuyNowButton
+                listingId={listing.id}
+                inStock={inStock}
+                labels={{ buyNow: dict.listing.buyNow, outOfStock: dict.listing.outOfStock }}
+              />
+            </div>
 
-        <AddToCartForm listingId={listing.id} inStock={inStock} />
+            <AddToCartForm listingId={listing.id} inStock={inStock} />
+
+            {/* Sold out and not a pre-book: capture demand instead of losing
+                the visitor entirely. */}
+            {!inStock ? (
+              <NotifyMeDialog
+                listingId={listing.id}
+                fullWidth
+                labels={{
+                  trigger: dict.listing.notifyMe,
+                  title: dict.listing.notifyTitle,
+                  blurb: dict.listing.notifyBlurb,
+                  email: dict.listing.notifyEmail,
+                  phone: dict.listing.notifyPhone,
+                  phoneOptional: dict.listing.notifyPhoneOptional,
+                  submit: dict.listing.notifySubmit,
+                  submitting: dict.listing.notifySubmitting,
+                  successTitle: dict.listing.notifySuccessTitle,
+                  successBlurb: dict.listing.notifySuccessBlurb,
+                }}
+              />
+            ) : null}
+          </>
+        )}
+
+        <div className="flex items-start gap-2 rounded-lg border border-gold-500/40 bg-gold-500/5 p-3 text-sm">
+          <Share2 className="mt-0.5 size-4 shrink-0 text-gold-600" />
+          <p className="text-muted-foreground">
+            <span className="font-semibold text-foreground">
+              {dict.listing.shareEarnTitle}
+            </span>{" "}
+            {viewer?.referralCode ? (
+              <>{dict.listing.shareEarnSignedIn}</>
+            ) : (
+              <>
+                <Link href="/login" className="font-medium text-foreground underline">
+                  Sign in
+                </Link>{" "}
+                and share this listing — if someone buys it, you earn 2% of the sale as store
+                credit.
+              </>
+            )}
+          </p>
+        </div>
 
         {listing.inventoryQty <= 0 ? (
           <p className="text-sm text-destructive">Out of stock</p>

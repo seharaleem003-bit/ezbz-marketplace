@@ -50,12 +50,14 @@ export default async function EditListingPage({
     fundraiserId: listing.fundraiserId ?? "",
     fulfillmentPickup: listing.fulfillmentPickup,
     fulfillmentDelivery: listing.fulfillmentDelivery,
+    isPrebook: listing.isPrebook,
   };
 
   return (
     <div>
       <h1 className="mb-6 text-2xl font-heading font-semibold">Edit listing</h1>
       <ListingForm
+        showPrebook
         action={updateListingAction.bind(null, listing.id)}
         categories={categories}
         fundraisers={fundraisers}

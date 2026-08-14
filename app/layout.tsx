@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     template: "%s | EZBZ Marketplace",
   },
   description:
-    "Liquidation and auction deals with Deal Score™ ratings, Amazon price comparisons, and video walkarounds.",
+    "Discounted deals with Deal Score™ ratings, Amazon price comparisons, and video walkarounds.",
 };
 
 export default function RootLayout({

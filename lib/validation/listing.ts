@@ -52,6 +52,7 @@ export const listingFormSchema = z.object({
     z.string().optional()
   ),
   fulfillmentMode: z.enum(["delivery", "pickup", "both"]),
+  isPrebook: z.preprocess((val) => val === "on", z.boolean()),
 });
 
 export type ListingFormInput = z.infer<typeof listingFormSchema>;

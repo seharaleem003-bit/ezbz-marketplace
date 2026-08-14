@@ -17,6 +17,7 @@ export interface ListingSearchParams {
   maxPrice?: string;
   sort?: string;
   page?: string;
+  prebook?: string;
 }
 
 function parseSort(sort?: string): ListingSort {
@@ -31,7 +32,55 @@ function parseCondition(condition?: string): ListingCondition | undefined {
     : undefined;
 }
 
-export function buildListingWhere(params: ListingSearchParams): Prisma.ListingWhereInput {
+export interface CategoryNode {
+  id: string;
+  slug: string;
+  name: string;
+  parentId: string | null;
+  sortOrder: number;
+}
+
+/**
+ * Every category id at or beneath `slug`.
+ *
+ * Browsing "Pets" has to include everything filed under "Cat trees" and
+ * "Dog play pens > Metal", otherwise parent categories look empty while their
+ * children hold all the stock.
+ */
+export function collectCategoryIds(all: CategoryNode[], slug: string): string[] {
+  const root = all.find((c) => c.slug === slug);
+  if (!root) return [];
+
+  const ids = [root.id];
+  // Breadth-first so arbitrary nesting depth works without recursion limits.
+  const queue = [root.id];
+  while (queue.length > 0) {
+    const parentId = queue.shift() as string;
+    for (const child of all.filter((c) => c.parentId === parentId)) {
+      ids.push(child.id);
+      queue.push(child.id);
+    }
+  }
+  return ids;
+}
+
+/** Ancestor chain for a category, root first, ending with the category itself. */
+export function buildBreadcrumb(all: CategoryNode[], categoryId: string): CategoryNode[] {
+  const chain: CategoryNode[] = [];
+  let current = all.find((c) => c.id === categoryId);
+  while (current) {
+    chain.unshift(current);
+    current = current.parentId
+      ? all.find((c) => c.id === current!.parentId)
+      : undefined;
+  }
+  return chain;
+}
+
+export function buildListingWhere(
+  params: ListingSearchParams,
+  categoryTree?: CategoryNode[]
+): Prisma.ListingWhereInput {
   const where: Prisma.ListingWhereInput = { status: "PUBLISHED" };
 
   const q = params.q?.trim();
@@ -43,7 +92,17 @@ export function buildListingWhere(params: ListingSearchParams): Prisma.ListingWh
   }
 
   if (params.category) {
-    where.category = { slug: params.category };
+    // With the tree loaded, roll a parent up to include its descendants;
+    // without it, fall back to an exact match.
+    const ids = categoryTree ? collectCategoryIds(categoryTree, params.category) : [];
+    where.categoryId = ids.length > 0 ? { in: ids } : undefined;
+    if (ids.length === 0) where.category = { slug: params.category };
+  }
+
+  // ?prebook=1 narrows to reservations; absent means "everything", so browse
+  // still shows pre-book items alongside in-stock ones.
+  if (params.prebook === "1") {
+    where.isPrebook = true;
   }
 
   const condition = parseCondition(params.condition);
@@ -82,13 +141,19 @@ function buildOrderBy(sort: ListingSort): Prisma.ListingOrderByWithRelationInput
 }
 
 export async function getListings(params: ListingSearchParams) {
-  const where = buildListingWhere(params);
+  // Loaded before the query because the category filter needs the tree to
+  // roll a parent up into its descendants.
+  const categories = await prisma.category.findMany({
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+  });
+
+  const where = buildListingWhere(params, categories);
   const sort = parseSort(params.sort);
   const orderBy = buildOrderBy(sort);
   const page = Math.max(1, Math.trunc(Number(params.page)) || 1);
   const skip = (page - 1) * PAGE_SIZE;
 
-  const [listings, total, categories] = await Promise.all([
+  const [listings, total] = await Promise.all([
     prisma.listing.findMany({
       where,
       orderBy,
@@ -100,8 +165,11 @@ export async function getListings(params: ListingSearchParams) {
       },
     }),
     prisma.listing.count({ where }),
-    prisma.category.findMany({ orderBy: { name: "asc" } }),
   ]);
+
+  const selected = params.category
+    ? categories.find((c) => c.slug === params.category) ?? null
+    : null;
 
   return {
     listings,
@@ -110,6 +178,12 @@ export async function getListings(params: ListingSearchParams) {
     pageCount: Math.max(1, Math.ceil(total / PAGE_SIZE)),
     categories,
     sort,
+    selectedCategory: selected,
+    // Immediate children of the selection — the next drill-down level.
+    subcategories: selected
+      ? categories.filter((c) => c.parentId === selected.id)
+      : categories.filter((c) => c.parentId === null),
+    breadcrumb: selected ? buildBreadcrumb(categories, selected.id) : [],
   };
 }
 
@@ -135,9 +209,26 @@ export async function getListingBySlug(slug: string) {
   });
 }
 
+export const PREBOOK_DISCOUNT_PERCENT = 10;
+
+export async function getPrebookListings(limit = 4) {
+  return prisma.listing.findMany({
+    where: { status: "PUBLISHED", isPrebook: true },
+    // Soonest release first — the closest thing to "arriving next".
+    orderBy: { prebookReleaseAt: "asc" },
+    take: limit,
+    include: {
+      category: true,
+      photos: { orderBy: { sortOrder: "asc" }, take: 1 },
+    },
+  });
+}
+
 export async function getNewestListings(limit = 3) {
   return prisma.listing.findMany({
-    where: { status: "PUBLISHED" },
+    // Pre-book items get their own hero slide and homepage row, so keeping
+    // them out of "Just listed" avoids showing the same thing twice.
+    where: { status: "PUBLISHED", isPrebook: false },
     orderBy: { createdAt: "desc" },
     take: limit,
     include: {
@@ -145,6 +236,53 @@ export async function getNewestListings(limit = 3) {
       photos: { orderBy: { sortOrder: "asc" }, take: 1 },
     },
   });
+}
+
+/**
+ * "Buy these together" suggestions for the checkout page.
+ *
+ * Picks in-stock listings from the same categories the buyer is already
+ * shopping, excluding what's in the cart. When the order is short of the
+ * free-shipping threshold, items that would close that gap are ranked first —
+ * the add-on both earns the buyer free delivery and lifts basket size.
+ */
+export async function getCrossSellListings({
+  excludeListingIds,
+  categoryIds,
+  remainingForFreeCents,
+  limit = 3,
+}: {
+  excludeListingIds: string[];
+  categoryIds: string[];
+  remainingForFreeCents: number;
+  limit?: number;
+}) {
+  const candidates = await prisma.listing.findMany({
+    where: {
+      status: "PUBLISHED",
+      inventoryQty: { gt: 0 },
+      id: { notIn: excludeListingIds.length > 0 ? excludeListingIds : ["__none__"] },
+      ...(categoryIds.length > 0 ? { categoryId: { in: categoryIds } } : {}),
+    },
+    orderBy: { dealScore: "desc" },
+    take: 24,
+    include: {
+      category: true,
+      photos: { orderBy: { sortOrder: "asc" }, take: 1 },
+    },
+  });
+
+  if (remainingForFreeCents <= 0) return candidates.slice(0, limit);
+
+  // Closest price at or above the gap wins — that's the cheapest single add
+  // that actually unlocks free shipping. Everything else keeps deal-score order.
+  const closesGap = candidates
+    .filter((listing) => listing.priceCents >= remainingForFreeCents)
+    .sort((a, b) => a.priceCents - b.priceCents);
+
+  const rest = candidates.filter((listing) => !closesGap.includes(listing));
+
+  return [...closesGap, ...rest].slice(0, limit);
 }
 
 export async function getTopDealListings(limit = 8) {

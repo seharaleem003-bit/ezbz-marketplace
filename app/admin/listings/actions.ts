@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth/dal";
 import { computeDealScore } from "@/lib/deal-score";
 import { listingFormSchema, parsePhotoUrls } from "@/lib/validation/listing";
+import { notifyPrebookWaitlist } from "@/lib/prebook-notify";
 
 export type ListingFormState =
   | { error?: string; fieldErrors?: Record<string, string[] | undefined> }
@@ -30,6 +31,7 @@ function readFormValues(formData: FormData) {
     videoCaption: formData.get("videoCaption"),
     fundraiserId: formData.get("fundraiserId"),
     fulfillmentMode: formData.get("fulfillmentMode"),
+    isPrebook: formData.get("isPrebook"),
   };
 }
 
@@ -96,7 +98,17 @@ async function upsertListing(
     fundraiserId: data.fundraiserId ?? null,
     fulfillmentPickup: data.fulfillmentMode === "pickup" || data.fulfillmentMode === "both",
     fulfillmentDelivery: data.fulfillmentMode === "delivery" || data.fulfillmentMode === "both",
+    isPrebook: data.isPrebook,
   };
+
+  // Captured before the write so we can tell whether this save is the moment
+  // the listing stopped being a pre-book — that's what triggers the waitlist.
+  const wasPrebook = existingId
+    ? (await prisma.listing.findUnique({
+        where: { id: existingId },
+        select: { isPrebook: true },
+      }))?.isPrebook ?? false
+    : false;
 
   const listing = await prisma.$transaction(async (tx) => {
     const saved = existingId
@@ -129,6 +141,19 @@ async function upsertListing(
 
     return saved;
   });
+
+  // Pre-book -> on sale is the release moment: everyone who asked to be told
+  // gets their one alert. Best-effort — a mail failure shouldn't undo the save.
+  if (wasPrebook && !data.isPrebook && data.status === "PUBLISHED") {
+    try {
+      const result = await notifyPrebookWaitlist(listing.id);
+      console.info(
+        `Notified ${result.emailed}/${result.total} waitlist entries for "${listing.title}".`
+      );
+    } catch (error) {
+      console.error(`Failed to notify pre-book waitlist for ${listing.id}`, error);
+    }
+  }
 
   revalidatePath("/admin/listings");
   revalidatePath("/listings");

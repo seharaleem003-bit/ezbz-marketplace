@@ -28,11 +28,37 @@ const SORT_OPTIONS = [
   { value: "price-desc", label: "Price: High to Low" },
 ];
 
-export function ListingFilters({
-  categories,
-}: {
-  categories: { slug: string; name: string }[];
-}) {
+export interface FilterCategory {
+  id: string;
+  slug: string;
+  name: string;
+  parentId: string | null;
+}
+
+/**
+ * Flattens the category tree into a depth-indented list so the dropdown reads
+ * as a hierarchy — otherwise "Metal" and "Acrylic" sit next to "Cat food"
+ * with nothing showing they belong to Dog play pens.
+ */
+function flattenTree(categories: FilterCategory[]) {
+  const out: { slug: string; label: string }[] = [];
+
+  const walk = (parentId: string | null, depth: number) => {
+    for (const category of categories.filter((c) => c.parentId === parentId)) {
+      out.push({
+        slug: category.slug,
+        label: `${"  ".repeat(depth)}${depth > 0 ? "└ " : ""}${category.name}`,
+      });
+      walk(category.id, depth + 1);
+    }
+  };
+
+  walk(null, 0);
+  return out;
+}
+
+export function ListingFilters({ categories }: { categories: FilterCategory[] }) {
+  const categoryOptions = flattenTree(categories);
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -85,17 +111,17 @@ export function ListingFilters({
           }
           items={[
             { value: "all", label: "All categories" },
-            ...categories.map((category) => ({ value: category.slug, label: category.name })),
+            ...categoryOptions.map((option) => ({ value: option.slug, label: option.label })),
           ]}
         >
-          <SelectTrigger className="w-40">
+          <SelectTrigger className="w-48">
             <SelectValue placeholder="All categories" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All categories</SelectItem>
-            {categories.map((category) => (
-              <SelectItem key={category.slug} value={category.slug}>
-                {category.name}
+            {categoryOptions.map((option) => (
+              <SelectItem key={option.slug} value={option.slug}>
+                <span className="whitespace-pre">{option.label}</span>
               </SelectItem>
             ))}
           </SelectContent>

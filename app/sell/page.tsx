@@ -178,12 +178,17 @@ export default async function SellDashboardPage() {
         </div>
       </div>
 
-      <div className="mt-8 flex gap-2">
+      <div className="mt-8 flex flex-wrap gap-2">
         <Button variant="outline" render={<Link href="/sell/listings" />}>
           Manage my listings
         </Button>
         <Button variant="outline" render={<Link href="/sell/orders" />}>
           View my sales
+        </Button>
+        {/* Seller threads land in the shared inbox — sellerUserId matches
+            this account, so /account/messages already shows them. */}
+        <Button variant="outline" render={<Link href="/account/messages" />}>
+          Buyer messages
         </Button>
         <Button variant="ghost" render={<Link href={`/shops/${seller.id}`} />}>
           View my storefront

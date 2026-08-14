@@ -1,4 +1,6 @@
+import Link from "next/link";
 import type { Metadata } from "next";
+import { Share2 } from "lucide-react";
 
 import { verifySession } from "@/lib/auth/dal";
 import { prisma } from "@/lib/prisma";
@@ -18,6 +20,7 @@ const REASON_LABELS: Record<string, string> = {
   REFERRAL_BONUS: "Referral bonus",
   REDEEMED_AT_CHECKOUT: "Redeemed at checkout",
   ADMIN_ADJUSTMENT: "Adjustment",
+  SHARE_COMMISSION: "Share reward (2%)",
 };
 
 export default async function ReferralsPage() {
@@ -36,6 +39,14 @@ export default async function ReferralsPage() {
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   const referralLink = `${appUrl}/signup?ref=${user?.referralCode ?? ""}`;
+
+  // Share rewards are just credit rows with this reason, so the lifetime total
+  // is a sum over the ledger rather than a separately-maintained counter.
+  const shareEarningsCents = transactions
+    .filter((tx) => tx.reason === "SHARE_COMMISSION")
+    .reduce((sum, tx) => sum + tx.amountCents, 0);
+
+  const shareCount = transactions.filter((tx) => tx.reason === "SHARE_COMMISSION").length;
 
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-10">
@@ -56,6 +67,43 @@ export default async function ReferralsPage() {
           Share this link — when someone you refer completes their first purchase, you earn{" "}
           {formatCents(1000)} in store credit.
         </p>
+      </div>
+
+      <div className="mt-4 rounded-xl border border-gold-500/40 bg-gold-500/5 p-4">
+        <div className="flex items-start gap-3">
+          <Share2 className="mt-0.5 size-5 shrink-0 text-gold-600" />
+          <div className="min-w-0 flex-1">
+            <p className="font-medium">Share any listing, earn 2%</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              You don&apos;t need a separate link. Open any listing, hit share, and your
+              referral code <code className="rounded bg-secondary px-1 py-0.5 text-xs">
+                {user?.referralCode ?? "—"}
+              </code>{" "}
+              is added to the link automatically. If someone buys through it, 2% of the sale
+              lands here as store credit.
+            </p>
+
+            <div className="mt-3 flex flex-wrap items-baseline gap-x-6 gap-y-1">
+              <div>
+                <p className="text-xs text-muted-foreground">Earned from shares</p>
+                <p className="text-xl font-semibold text-gold-700 dark:text-gold-400">
+                  {formatCents(shareEarningsCents)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Sales from your links</p>
+                <p className="text-xl font-semibold">{shareCount}</p>
+              </div>
+            </div>
+
+            <Link
+              href="/listings"
+              className="mt-3 inline-block text-sm font-medium underline underline-offset-4"
+            >
+              Find something to share
+            </Link>
+          </div>
+        </div>
       </div>
 
       <div className="mt-4 rounded-xl bg-card p-4 ring-1 ring-foreground/10">
