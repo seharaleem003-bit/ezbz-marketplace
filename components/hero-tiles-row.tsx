@@ -93,7 +93,15 @@ export function HeroTilesRow({
     return () => window.removeEventListener("resize", compute);
   }, []);
 
-  const pageCount = Math.max(1, Math.ceil(tiles.length / perView));
+  // Only show whole rows. A trailing partial page leaves dead white space
+  // beside one or two stranded tiles, which reads as broken — better to hold
+  // the odd tile back until there are enough to fill another row.
+  const usable =
+    tiles.length >= perView
+      ? tiles.slice(0, Math.floor(tiles.length / perView) * perView)
+      : tiles;
+
+  const pageCount = Math.max(1, Math.ceil(usable.length / perView));
 
   // Clamp when the viewport shrinks and there are fewer pages than before.
   useEffect(() => {
@@ -132,7 +140,7 @@ export function HeroTilesRow({
                       : "grid-cols-1"
                 )}
               >
-                {tiles
+                {usable
                   .slice(pageIndex * perView, pageIndex * perView + perView)
                   .map((tile) => (
                     <Tile key={tile.id} tile={tile} />

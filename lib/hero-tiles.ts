@@ -38,18 +38,30 @@ async function photosFor(where: Parameters<typeof prisma.listing.findMany>[0], t
  * inventory rather than stock art that goes stale.
  */
 export async function getHeroTiles(): Promise<HeroTile[]> {
-  const [prebookPhotos, dealPhotos, petPhotos, homePhotos, mobilityPhotos, electronicsPhotos] =
-    await Promise.all([
-      photosFor({ where: { status: "PUBLISHED", isPrebook: true } }, 4),
-      photosFor(
-        { where: { status: "PUBLISHED", isPrebook: false }, orderBy: { dealScore: "desc" } },
-        4
-      ),
-      photosFor({ where: { status: "PUBLISHED", category: { slug: "pets" } } }, 4),
-      photosFor({ where: { status: "PUBLISHED", category: { slug: "home-kitchen" } } }, 4),
-      photosFor({ where: { status: "PUBLISHED", category: { slug: "mobility" } } }, 4),
-      photosFor({ where: { status: "PUBLISHED", category: { slug: "electronics" } } }, 4),
-    ]);
+  const [
+    prebookPhotos,
+    dealPhotos,
+    petPhotos,
+    homePhotos,
+    mobilityPhotos,
+    electronicsPhotos,
+    toolsPhotos,
+    fitnessPhotos,
+    newestPhotos,
+  ] = await Promise.all([
+    photosFor({ where: { status: "PUBLISHED", isPrebook: true } }, 4),
+    photosFor(
+      { where: { status: "PUBLISHED", isPrebook: false }, orderBy: { dealScore: "desc" } },
+      4
+    ),
+    photosFor({ where: { status: "PUBLISHED", category: { slug: "pets" } } }, 4),
+    photosFor({ where: { status: "PUBLISHED", category: { slug: "home-kitchen" } } }, 4),
+    photosFor({ where: { status: "PUBLISHED", category: { slug: "mobility" } } }, 4),
+    photosFor({ where: { status: "PUBLISHED", category: { slug: "electronics" } } }, 4),
+    photosFor({ where: { status: "PUBLISHED", category: { slug: "tools-hardware" } } }, 4),
+    photosFor({ where: { status: "PUBLISHED", category: { slug: "fitness-outdoors" } } }, 4),
+    photosFor({ where: { status: "PUBLISHED" }, orderBy: { createdAt: "desc" } }, 4),
+  ]);
 
   const tiles: HeroTile[] = [
     {
@@ -123,6 +135,37 @@ export async function getHeroTiles(): Promise<HeroTile[]> {
       background: "bg-[#5b8c5a]",
       text: "text-white",
       imageUrls: petPhotos.slice(0, 4),
+    },
+    {
+      id: "tools",
+      kicker: "Drills, hand tools & liquidation lots",
+      headline: "Kit out the workshop",
+      ctaLabel: "Shop tools",
+      href: "/listings?category=tools-hardware",
+      background: "bg-[#8c4a2f]",
+      text: "text-white",
+      imageUrls: toolsPhotos.slice(0, 4),
+    },
+    {
+      id: "fitness",
+      kicker: "Weights, tents & the outdoors",
+      headline: "Gear up for less",
+      ctaLabel: "Shop fitness",
+      href: "/listings?category=fitness-outdoors",
+      background: "bg-[#2f6f6b]",
+      text: "text-white",
+      imageUrls: fitnessPhotos.slice(0, 4),
+    },
+    {
+      id: "share-earn",
+      kicker: "Share any listing you like",
+      headline: "Earn 2% store credit",
+      sub: "Paid when someone buys through your link",
+      ctaLabel: "How it works",
+      href: "/account/referrals",
+      background: "bg-[#1a56db]",
+      text: "text-white",
+      imageUrls: newestPhotos.slice(0, 4),
     },
   ];
 
