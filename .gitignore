@@ -48,3 +48,7 @@ next-env.d.ts
 
 # local dev logs (can contain secrets, e.g. stripe-listen's webhook signing secret)
 *.log
+
+# The Vercel CLI appends its own .vercel / .env* rules on link; both are
+# already covered above, and re-adding .env* here would undo the
+# !.env.example exception.
