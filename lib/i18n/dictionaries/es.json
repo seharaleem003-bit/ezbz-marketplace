@@ -8,7 +8,10 @@
     "cart": "Carrito",
     "logIn": "Iniciar sesión",
     "home": "Inicio de EZBZ",
-    "language": "Idioma"
+    "language": "Idioma",
+    "allDepartments": "Todos los departamentos",
+    "shopAll": "Ver todo en",
+    "freeShippingNote": "Envío gratis en pedidos de más de $200"
   },
   "categories": {
     "pet": "Mascotas",

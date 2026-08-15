@@ -8,7 +8,10 @@
     "cart": "Cart",
     "logIn": "Log in",
     "home": "EZBZ home",
-    "language": "Language"
+    "language": "Language",
+    "allDepartments": "All departments",
+    "shopAll": "Shop all",
+    "freeShippingNote": "Free shipping over $200"
   },
   "categories": {
     "pet": "Pet",

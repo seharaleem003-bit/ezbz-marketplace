@@ -14,7 +14,9 @@ import {
 
 import { auth } from "@/lib/auth";
 import { getCartItemCount } from "@/lib/cart";
+import { prisma } from "@/lib/prisma";
 import { FEATURED_CATEGORIES } from "@/lib/featured-categories";
+import { DepartmentMenu } from "@/components/department-menu";
 import { getDictionary, getLocale } from "@/lib/i18n";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { Button } from "@/components/ui/button";
@@ -45,6 +47,20 @@ export async function SiteHeader() {
     getLocale(),
   ]);
   const dict = await getDictionary();
+
+  // Full tree for the department menu — top-level entries with their children.
+  const allCategories = await prisma.category.findMany({
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    select: { id: true, slug: true, name: true, parentId: true },
+  });
+  const departments = allCategories
+    .filter((c) => c.parentId === null)
+    .map((parent) => ({
+      ...parent,
+      children: allCategories
+        .filter((c) => c.parentId === parent.id)
+        .map(({ id, slug, name }) => ({ id, slug, name })),
+    }));
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   const qrCodeDataUrl = await QRCode.toDataURL(appUrl, {
     margin: 1,
@@ -127,24 +143,53 @@ export async function SiteHeader() {
         </div>
       </div>
 
-      <nav className="border-t">
-        <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-2">
+      {/* Department bar. Navy so it reads as part of the header rather than
+          floating chips on white, and anchored by the full category menu. */}
+      <nav className="relative bg-navy-900 text-white">
+        <div className="mx-auto flex max-w-6xl items-center gap-1 px-4 py-1.5">
+          <DepartmentMenu
+            departments={departments}
+            label={dict.header.allDepartments}
+            allLabel={dict.header.shopAll}
+          />
+
+          <span className="mx-1 h-5 w-px bg-white/20" aria-hidden />
+
           {FEATURED_CATEGORIES.map((category) => {
             const Icon = CATEGORY_ICONS[category.slug] ?? PawPrint;
             const labelKey = CATEGORY_LABEL_KEYS[category.slug];
             return (
-              <Button
+              <Link
                 key={category.slug}
-                variant="outline"
-                size="sm"
-                className="rounded-full border-navy-800/25 font-semibold text-navy-800 hover:border-gold-500 hover:bg-gold-500/10 hover:text-navy-900"
-                render={<Link href={category.href} />}
+                href={category.href}
+                className="hidden items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium text-white/85 transition-colors hover:bg-white/10 hover:text-white sm:flex"
               >
-                <Icon />
+                <Icon className="size-4" />
                 {labelKey ? dict.categories[labelKey] : category.label}
-              </Button>
+              </Link>
             );
           })}
+
+          <Link
+            href="/listings?sort=deal-score-desc"
+            className="hidden rounded-md px-2.5 py-1.5 text-sm font-medium text-white/85 transition-colors hover:bg-white/10 hover:text-white lg:block"
+          >
+            {dict.footer.bestDealScores}
+          </Link>
+          <Link
+            href="/listings?prebook=1"
+            className="hidden rounded-md px-2.5 py-1.5 text-sm font-medium text-white/85 transition-colors hover:bg-white/10 hover:text-white lg:block"
+          >
+            {dict.home.prebookBadge}
+          </Link>
+
+          {/* Pushed right — a standing reminder of the shipping threshold. */}
+          <Link
+            href="/listings"
+            className="ml-auto hidden text-sm font-semibold text-gold-400 hover:text-gold-300 md:block"
+          >
+            {dict.header.freeShippingNote}
+          </Link>
         </div>
       </nav>
     </header>
