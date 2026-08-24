@@ -1,6 +1,7 @@
 import "server-only";
 
 import { prisma } from "@/lib/prisma";
+import { collectCategoryIds, type CategoryNode } from "@/lib/listings";
 
 /**
  * A single promo panel in the hero row — a coloured marketing tile with a
@@ -22,6 +23,86 @@ export interface HeroTile {
   /** Tailwind class for the tile's text colour. */
   text: string;
   imageUrls: string[];
+  /** Set on product spotlights — rendered as a price chip over the photo. */
+  price?: string;
+}
+
+/**
+ * Departments given a product spotlight in the hero row, in display order.
+ *
+ * One tile each, so the row shows six different corners of the catalogue
+ * rather than six variations on whatever happens to be newest.
+ */
+const SPOTLIGHT_DEPARTMENTS: { slug: string; background: string; text: string }[] = [
+  { slug: "pets", background: "bg-[#5b8c5a]", text: "text-white" },
+  { slug: "home-kitchen", background: "bg-[#f4a259]", text: "text-navy-900" },
+  { slug: "tools-hardware", background: "bg-[#8c4a2f]", text: "text-white" },
+  { slug: "beauty-personal-care", background: "bg-[#7b4b94]", text: "text-white" },
+  { slug: "baby-kids", background: "bg-[#d4e94a]", text: "text-navy-900" },
+  { slug: "mobility", background: "bg-gold-500", text: "text-navy-900" },
+];
+
+const priceFormatter = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  maximumFractionDigits: 0,
+});
+
+/** Long supplier titles overflow the tile headline, so cut on a word boundary. */
+function shorten(title: string, max = 46) {
+  if (title.length <= max) return title;
+  const cut = title.slice(0, max);
+  const lastSpace = cut.lastIndexOf(" ");
+  return `${(lastSpace > 20 ? cut.slice(0, lastSpace) : cut).trimEnd()}…`;
+}
+
+/**
+ * One product spotlight per department, each a different listing.
+ *
+ * Departments roll up their subcategories, so "Pets" can be represented by a
+ * playpen filed three levels down.
+ */
+async function spotlightTiles(tree: CategoryNode[]): Promise<HeroTile[]> {
+  const used = new Set<string>();
+  const tiles: HeroTile[] = [];
+
+  for (const dept of SPOTLIGHT_DEPARTMENTS) {
+    const ids = collectCategoryIds(tree, dept.slug);
+    if (ids.length === 0) continue;
+    const deptName = tree.find((c) => c.slug === dept.slug)?.name ?? "";
+
+    const listing = await prisma.listing.findFirst({
+      where: {
+        status: "PUBLISHED",
+        categoryId: { in: ids },
+        id: { notIn: [...used] },
+        photos: { some: {} },
+      },
+      orderBy: { createdAt: "desc" },
+      include: {
+        category: { select: { name: true } },
+        photos: { orderBy: { sortOrder: "asc" }, take: 1 },
+      },
+    });
+    if (!listing) continue;
+
+    used.add(listing.id);
+    tiles.push({
+      id: `spotlight-${dept.slug}`,
+      // The department, not the leaf — a tile labelled "Metal" (from
+      // Pets > Dog play pens > Metal) means nothing on its own.
+      kicker: deptName,
+      headline: shorten(listing.title),
+      ctaLabel: "Shop this deal",
+      href: `/listings/${listing.slug}`,
+      background: dept.background,
+      text: dept.text,
+      imageUrls: [listing.photos[0].url],
+      price: priceFormatter.format(listing.priceCents / 100),
+    });
+  }
+
+  return tiles;
 }
 
 async function photosFor(where: Parameters<typeof prisma.listing.findMany>[0], take: number) {
@@ -38,30 +119,31 @@ async function photosFor(where: Parameters<typeof prisma.listing.findMany>[0], t
  * inventory rather than stock art that goes stale.
  */
 export async function getHeroTiles(): Promise<HeroTile[]> {
-  const [
-    prebookPhotos,
-    dealPhotos,
-    petPhotos,
-    homePhotos,
-    mobilityPhotos,
-    electronicsPhotos,
-    toolsPhotos,
-    fitnessPhotos,
-    newestPhotos,
-  ] = await Promise.all([
-    photosFor({ where: { status: "PUBLISHED", isPrebook: true } }, 4),
-    photosFor(
-      { where: { status: "PUBLISHED", isPrebook: false }, orderBy: { dealScore: "desc" } },
-      4
-    ),
-    photosFor({ where: { status: "PUBLISHED", category: { slug: "pets" } } }, 4),
-    photosFor({ where: { status: "PUBLISHED", category: { slug: "home-kitchen" } } }, 4),
-    photosFor({ where: { status: "PUBLISHED", category: { slug: "mobility" } } }, 4),
-    photosFor({ where: { status: "PUBLISHED", category: { slug: "electronics" } } }, 4),
-    photosFor({ where: { status: "PUBLISHED", category: { slug: "tools-hardware" } } }, 4),
-    photosFor({ where: { status: "PUBLISHED", category: { slug: "fitness-outdoors" } } }, 4),
-    photosFor({ where: { status: "PUBLISHED" }, orderBy: { createdAt: "desc" } }, 4),
-  ]);
+  const tree = await prisma.category.findMany({
+    select: { id: true, slug: true, name: true, parentId: true, sortOrder: true },
+  });
+
+  // Category collages roll up their subcategories too — with the real
+  // catalogue filed under nodes like "Pets > Dog play pens > Acrylic", an
+  // exact slug match on the parent returns nothing.
+  const inTree = (slug: string) => ({
+    status: "PUBLISHED" as const,
+    categoryId: { in: collectCategoryIds(tree, slug) },
+  });
+
+  const [spotlights, prebookPhotos, dealPhotos, petPhotos, homePhotos, toolsPhotos, newestPhotos] =
+    await Promise.all([
+      spotlightTiles(tree),
+      photosFor({ where: { status: "PUBLISHED", isPrebook: true } }, 4),
+      photosFor(
+        { where: { status: "PUBLISHED", isPrebook: false }, orderBy: { dealScore: "desc" } },
+        4
+      ),
+      photosFor({ where: inTree("pets") }, 4),
+      photosFor({ where: inTree("home-kitchen") }, 4),
+      photosFor({ where: inTree("tools-hardware") }, 4),
+      photosFor({ where: { status: "PUBLISHED" }, orderBy: { createdAt: "desc" } }, 4),
+    ]);
 
   const tiles: HeroTile[] = [
     {
@@ -74,6 +156,10 @@ export async function getHeroTiles(): Promise<HeroTile[]> {
       text: "text-white",
       imageUrls: dealPhotos.slice(0, 4),
     },
+
+    // Six real products, one per department, ahead of the generic promos.
+    ...spotlights,
+
     {
       id: "prebook",
       kicker: "Reserve before it lands",
@@ -107,26 +193,6 @@ export async function getHeroTiles(): Promise<HeroTile[]> {
       imageUrls: homePhotos.slice(0, 4),
     },
     {
-      id: "electronics",
-      kicker: "Audio, smart home & gadgets",
-      headline: "Tech worth switching to",
-      ctaLabel: "Shop electronics",
-      href: "/listings?category=electronics",
-      background: "bg-navy-800",
-      text: "text-white",
-      imageUrls: electronicsPhotos.slice(0, 4),
-    },
-    {
-      id: "mobility",
-      kicker: "E-bikes, scooters & more",
-      headline: "Get moving for less",
-      ctaLabel: "Shop mobility",
-      href: "/listings?category=mobility",
-      background: "bg-gold-500",
-      text: "text-navy-900",
-      imageUrls: mobilityPhotos.slice(0, 4),
-    },
-    {
       id: "pets",
       kicker: "Beds, crates, toys & supplies",
       headline: "Treat your pet",
@@ -145,16 +211,6 @@ export async function getHeroTiles(): Promise<HeroTile[]> {
       background: "bg-[#8c4a2f]",
       text: "text-white",
       imageUrls: toolsPhotos.slice(0, 4),
-    },
-    {
-      id: "fitness",
-      kicker: "Weights, tents & the outdoors",
-      headline: "Gear up for less",
-      ctaLabel: "Shop fitness",
-      href: "/listings?category=fitness-outdoors",
-      background: "bg-[#2f6f6b]",
-      text: "text-white",
-      imageUrls: fitnessPhotos.slice(0, 4),
     },
     {
       id: "share-earn",

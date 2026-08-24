@@ -62,7 +62,14 @@ function Tile({ tile }: { tile: HeroTile }) {
       <h3 className="mt-1 font-heading text-2xl font-bold leading-tight">{tile.headline}</h3>
       {tile.sub ? <p className="mt-1 text-sm font-medium opacity-80">{tile.sub}</p> : null}
 
-      <TileImages urls={tile.imageUrls} alt={tile.headline} />
+      <div className="relative">
+        <TileImages urls={tile.imageUrls} alt={tile.headline} />
+        {tile.price ? (
+          <span className="absolute bottom-2 left-2 rounded-full bg-white/95 px-3 py-1 text-sm font-bold text-navy-900 shadow-sm">
+            {tile.price}
+          </span>
+        ) : null}
+      </div>
 
       <span className="mt-4 text-sm font-semibold underline underline-offset-4">
         {tile.ctaLabel}

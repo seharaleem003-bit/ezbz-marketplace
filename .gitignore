@@ -52,3 +52,9 @@ next-env.d.ts
 # The Vercel CLI appends its own .vercel / .env* rules on link; both are
 # already covered above, and re-adding .env* here would undo the
 # !.env.example exception.
+
+# Scratch scripts and OneDrive conflict copies (never commit these —
+# cands.json once held live Stripe key material).
+.scratch/
+cands.json
+*-sehar.*
