@@ -10,7 +10,6 @@ import { formatCents, formatCondition, formatJoinedDate, formatRelativeTime } fr
 import { getOptionalSession } from "@/lib/auth/dal";
 import { getDictionary, getLocale, t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
-import { DealScoreBadge } from "@/components/deal-score-badge";
 import { DiscountBadge, calculateDiscount } from "@/components/discount-badge";
 import { CornerRibbon, ribbonFor } from "@/components/corner-ribbon";
 import { NotifyMeDialog } from "@/components/notify-me-dialog";
@@ -117,11 +116,6 @@ export default async function ListingDetailPage({
               className="size-32"
             />
           ) : null}
-          <DealScoreBadge
-            score={listing.dealScore}
-            size="lg"
-            className={ribbon ? "absolute right-3 top-3" : "absolute left-3 top-3"}
-          />
         </div>
         {restPhotos.length > 0 ? (
           <div className="grid grid-cols-4 gap-2">

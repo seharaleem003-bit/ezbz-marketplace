@@ -2,7 +2,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { Share2 } from "lucide-react";
 
-import { DealScoreBadge } from "@/components/deal-score-badge";
 import { DiscountBadge, calculateDiscount } from "@/components/discount-badge";
 import { CornerRibbon, ribbonFor } from "@/components/corner-ribbon";
 import { ShareMenu } from "@/components/share-menu";
@@ -63,12 +62,6 @@ export async function ListingCard({
             label={ribbon === "sold" ? dict.listing.ribbonSold : dict.listing.ribbonPrebook}
           />
         ) : null}
-        {/* Nudged right when a ribbon occupies the corner. */}
-        <DealScoreBadge
-          score={listing.dealScore}
-          size="sm"
-          className={ribbon ? "absolute right-2 top-11" : "absolute left-2 top-2"}
-        />
         {discount ? (
           <DiscountBadge
             discount={discount}
