@@ -447,7 +447,12 @@ export async function placeOrderAction(
   const sessionParams: Parameters<typeof stripe.checkout.sessions.create>[0] = {
     mode: "payment",
     customer: stripeCustomerId,
-    payment_method_types: ["card", "klarna"],
+    // No payment_method_types: pinning it to a hardcoded list hid methods the
+    // account already supports. Omitting it lets Checkout show everything
+    // enabled in the Stripe Dashboard — cards (credit and debit), Apple Pay,
+    // Google Pay, Link, PayPal, Cash App, Klarna — picking what the shopper's
+    // device and country actually support. New methods can then be turned on
+    // in Stripe without a deploy.
     automatic_tax: { enabled: true },
     customer_update: { shipping: "auto" },
     shipping_address_collection: { allowed_countries: ["US", "CA"] },

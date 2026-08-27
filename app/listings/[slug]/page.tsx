@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import QRCode from "qrcode";
@@ -11,6 +10,7 @@ import { getOptionalSession } from "@/lib/auth/dal";
 import { getDictionary, getLocale, t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { DiscountBadge, calculateDiscount } from "@/components/discount-badge";
+import { ListingGallery } from "./listing-gallery";
 import { CornerRibbon, ribbonFor } from "@/components/corner-ribbon";
 import { NotifyMeDialog } from "@/components/notify-me-dialog";
 import { AmazonPriceCompare } from "@/components/amazon-price-compare";
@@ -81,8 +81,6 @@ export default async function ListingDetailPage({
       })
     : null;
 
-  const [heroPhoto, ...restPhotos] = listing.photos;
-
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   const listingUrl = `${appUrl}/listings/${listing.slug}`;
   const qrCodeDataUrl = await QRCode.toDataURL(listingUrl, {
@@ -109,45 +107,24 @@ export default async function ListingDetailPage({
 
   return (
     <div className="mx-auto grid w-full max-w-6xl gap-8 px-4 py-10 lg:grid-cols-2">
-      <div className="flex flex-col gap-3">
-        <div className="relative aspect-4/3 overflow-hidden rounded-xl bg-muted">
-          {heroPhoto ? (
-            <Image
-              src={heroPhoto.url}
-              alt={heroPhoto.altText ?? listing.title}
-              fill
-              priority
-              sizes="(min-width: 1024px) 50vw, 100vw"
-              className="object-cover"
-            />
-          ) : null}
-          {ribbon ? (
+      <ListingGallery
+        photos={listing.photos.map((photo) => ({
+          id: photo.id,
+          url: photo.url,
+          altText: photo.altText,
+        }))}
+        title={listing.title}
+        labels={{ previous: dict.home.previousListing, next: dict.home.nextListing }}
+        ribbon={
+          ribbon ? (
             <CornerRibbon
               kind={ribbon}
               label={ribbon === "sold" ? dict.listing.ribbonSold : dict.listing.ribbonPrebook}
               className="size-32"
             />
-          ) : null}
-        </div>
-        {restPhotos.length > 0 ? (
-          <div className="grid grid-cols-4 gap-2">
-            {restPhotos.map((photo) => (
-              <div
-                key={photo.id}
-                className="relative aspect-square overflow-hidden rounded-lg bg-muted"
-              >
-                <Image
-                  src={photo.url}
-                  alt={photo.altText ?? listing.title}
-                  fill
-                  sizes="120px"
-                  className="object-cover"
-                />
-              </div>
-            ))}
-          </div>
-        ) : null}
-      </div>
+          ) : null
+        }
+      />
 
       <div className="flex flex-col gap-4">
         <div className="flex items-start justify-between gap-4">
