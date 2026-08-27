@@ -35,9 +35,22 @@ function merchantKeyFor(listing: { sellerId: string | null; fundraiserId: string
 
 async function ensureStripeCustomer(userId: string, email: string, name?: string | null) {
   const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (user?.stripeCustomerId) return user.stripeCustomerId;
-
   const stripe = getStripe();
+
+  if (user?.stripeCustomerId) {
+    // A stored id is only good for the account that issued it. Switching from
+    // test to live keys (or rotating into a different account) leaves every
+    // saved id pointing at a customer that no longer resolves, and Checkout
+    // then fails with "No such customer" for every shopper. Verify before
+    // trusting it, and re-create rather than dying.
+    try {
+      const existing = await stripe.customers.retrieve(user.stripeCustomerId);
+      if (!existing.deleted) return user.stripeCustomerId;
+    } catch {
+      // Falls through to create a replacement below.
+    }
+  }
+
   const customer = await stripe.customers.create({
     email,
     name: name ?? undefined,

@@ -7,6 +7,7 @@ import { CheckCircle2, MessageCircle, Send } from "lucide-react";
 import { sendListingMessageAction, type ChatState } from "./chat-actions";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { AttachmentPicker } from "@/components/attachment-picker";
 import {
   Dialog,
   DialogContent,
@@ -114,9 +115,13 @@ export function ChatSellerDialog({
                 ref={textareaRef}
                 name="body"
                 rows={4}
-                required
                 placeholder={labels.placeholder}
               />
+
+              {/* Not `required` on the textarea any more: a photo of the item
+                  is a complete message on its own, and the action rejects a
+                  submission that has neither text nor files. */}
+              <AttachmentPicker />
               {state?.error ? (
                 <p className="text-sm text-destructive" role="alert">
                   {state.error}

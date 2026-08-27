@@ -100,7 +100,11 @@
     "ribbonPrebook": "Reserva",
     "off": "DTO.",
     "vsAmazon": "vs Amazon",
-    "offRetail": "sobre precio de lista"
+    "offRetail": "sobre precio de lista",
+    "similarHeading": "Artículos similares",
+    "boughtTogetherHeading": "Se compran juntos frecuentemente",
+    "boughtTogetherReal": "Quienes compraron esto también compraron estos.",
+    "boughtTogetherSuggested": "Combina bien con esto — elegido de categorías que le acompañan."
   },
   "share": {
     "copyLink": "Copiar enlace",

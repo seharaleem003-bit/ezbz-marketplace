@@ -100,7 +100,11 @@
     "ribbonPrebook": "Pre-book",
     "off": "OFF",
     "vsAmazon": "vs Amazon",
-    "offRetail": "off retail"
+    "offRetail": "off retail",
+    "similarHeading": "Similar items",
+    "boughtTogetherHeading": "Frequently bought together",
+    "boughtTogetherReal": "Customers who bought this also bought these.",
+    "boughtTogetherSuggested": "Goes well with this — picked from categories that pair with it."
   },
   "share": {
     "copyLink": "Copy link",

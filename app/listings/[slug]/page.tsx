@@ -11,6 +11,8 @@ import { getDictionary, getLocale, t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { DiscountBadge, calculateDiscount } from "@/components/discount-badge";
 import { ListingGallery } from "./listing-gallery";
+import { RecommendationRow } from "@/components/recommendation-row";
+import { getSimilarListings, getBoughtTogether } from "@/lib/recommendations";
 import { CornerRibbon, ribbonFor } from "@/components/corner-ribbon";
 import { NotifyMeDialog } from "@/components/notify-me-dialog";
 import { AmazonPriceCompare } from "@/components/amazon-price-compare";
@@ -105,8 +107,24 @@ export default async function ListingDetailPage({
     : "";
   const inStock = listing.inventoryQty > 0;
 
+  const [similar, boughtTogether] = await Promise.all([
+    getSimilarListings({
+      listingId: listing.id,
+      categoryId: listing.categoryId,
+      priceCents: listing.priceCents,
+    }),
+    getBoughtTogether({ listingId: listing.id, categoryId: listing.categoryId }),
+  ]);
+  const recLabels = {
+    off: dict.listing.off,
+    vsAmazon: dict.listing.vsAmazon,
+    offRetail: dict.listing.offRetail,
+    outOfStock: dict.listing.outOfStock,
+  };
+
   return (
-    <div className="mx-auto grid w-full max-w-6xl gap-8 px-4 py-10 lg:grid-cols-2">
+    <div className="mx-auto w-full max-w-6xl px-4 py-10">
+      <div className="grid gap-8 lg:grid-cols-2">
       <ListingGallery
         photos={listing.photos.map((photo) => ({
           id: photo.id,
@@ -372,6 +390,24 @@ export default async function ListingDetailPage({
           <img src={qrCodeDataUrl} alt="QR code to this listing" className="size-24 shrink-0" />
         </div>
       </div>
+    </div>
+
+      <RecommendationRow
+        heading={dict.listing.boughtTogetherHeading}
+        subheading={
+          boughtTogether.basis === "co-purchase"
+            ? dict.listing.boughtTogetherReal
+            : dict.listing.boughtTogetherSuggested
+        }
+        items={boughtTogether.items}
+        labels={recLabels}
+      />
+
+      <RecommendationRow
+        heading={dict.listing.similarHeading}
+        items={similar}
+        labels={recLabels}
+      />
     </div>
   );
 }

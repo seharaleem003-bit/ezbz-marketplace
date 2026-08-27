@@ -6,10 +6,13 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getOptionalSession } from "@/lib/auth/dal";
 import { resolveRecipient, notifyNewMessage } from "@/lib/messaging";
+import { storeMessageAttachments } from "@/lib/attachments";
 
 const messageSchema = z.object({
   listingId: z.string().trim().min(1),
-  body: z.string().trim().min(1, "Type a message first").max(2000),
+  // Attachments can carry the message on their own, so an empty body is only
+  // rejected when nothing is attached either (checked below).
+  body: z.string().trim().max(2000),
 });
 
 export type ChatState =
@@ -35,6 +38,14 @@ export async function sendListingMessageAction(
     return { error: parsed.error.issues[0]?.message ?? "Type a message first" };
   }
 
+  const incoming = formData
+    .getAll("attachments")
+    .filter((f): f is File => f instanceof File && f.size > 0);
+
+  if (!parsed.data.body && incoming.length === 0) {
+    return { error: "Type a message or attach a file first" };
+  }
+
   const recipient = await resolveRecipient(parsed.data.listingId);
   if (!recipient) return { error: "That listing is no longer available." };
 
@@ -58,11 +69,26 @@ export async function sendListingMessageAction(
     },
   });
 
+  // Uploaded before the message row so a storage failure surfaces as an error
+  // instead of leaving a message that references files that were never saved.
+  const stored = await storeMessageAttachments(incoming);
+  if (!stored.files) return { error: stored.error };
+
   await prisma.message.create({
     data: {
       conversationId: conversation.id,
       senderId: session.user.id,
       body: parsed.data.body,
+      attachments: stored.files.length
+        ? {
+            create: stored.files.map((f) => ({
+              url: f.url,
+              filename: f.filename,
+              contentType: f.contentType,
+              sizeBytes: f.sizeBytes,
+            })),
+          }
+        : undefined,
     },
   });
 
@@ -75,7 +101,9 @@ export async function sendListingMessageAction(
   await notifyNewMessage({
     conversationId: conversation.id,
     senderId: session.user.id,
-    body: parsed.data.body,
+    body:
+      parsed.data.body ||
+      `Sent ${stored.files.length} attachment${stored.files.length === 1 ? "" : "s"}`,
   });
 
   revalidatePath("/account/messages");
@@ -92,7 +120,12 @@ export async function replyToConversationAction(
   if (!session?.user) return { requiresLogin: true };
 
   const body = String(formData.get("body") ?? "").trim();
-  if (!body) return { error: "Type a message first" };
+  const incoming = formData
+    .getAll("attachments")
+    .filter((f): f is File => f instanceof File && f.size > 0);
+  if (!body && incoming.length === 0) {
+    return { error: "Type a message or attach a file first" };
+  }
 
   const conversation = await prisma.conversation.findUnique({
     where: { id: conversationId },
@@ -111,8 +144,25 @@ export async function replyToConversationAction(
 
   const trimmed = body.slice(0, 2000);
 
+  const stored = await storeMessageAttachments(incoming);
+  if (!stored.files) return { error: stored.error };
+
   await prisma.message.create({
-    data: { conversationId, senderId: session.user.id, body: trimmed },
+    data: {
+      conversationId,
+      senderId: session.user.id,
+      body: trimmed,
+      attachments: stored.files.length
+        ? {
+            create: stored.files.map((f) => ({
+              url: f.url,
+              filename: f.filename,
+              contentType: f.contentType,
+              sizeBytes: f.sizeBytes,
+            })),
+          }
+        : undefined,
+    },
   });
   await prisma.conversation.update({
     where: { id: conversationId },

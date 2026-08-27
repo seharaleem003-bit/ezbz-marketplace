@@ -287,12 +287,35 @@ model Message {
   senderId String
   sender   User   @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
 
+  // Blank when the message is only an attachment — a photo of the damage is a
+  // complete message on its own.
   body   String
   readAt DateTime?
+
+  attachments MessageAttachment[]
 
   createdAt DateTime @default(now())
 
   @@index([conversationId, createdAt])
+}
+
+model MessageAttachment {
+  id        String  @id @default(cuid())
+  messageId String
+  message   Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  // Absolute URL in object storage, or a /uploads path in local development.
+  url         String
+  // The uploader's original filename, shown to the recipient. Never used to
+  // build a path — the stored key is generated, so a hostile filename can't
+  // escape its folder.
+  filename    String
+  contentType String
+  sizeBytes   Int
+
+  createdAt DateTime @default(now())
+
+  @@index([messageId])
 }
 
 enum ListingCondition {

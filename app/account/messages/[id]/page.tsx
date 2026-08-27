@@ -8,6 +8,7 @@ import { verifySession } from "@/lib/auth/dal";
 import { formatCents } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { ReplyForm } from "./reply-form";
+import { MessageAttachments } from "@/components/message-attachments";
 
 export const dynamic = "force-dynamic";
 
@@ -34,7 +35,10 @@ export default async function ConversationPage({
       },
       buyer: { select: { id: true, name: true, email: true } },
       sellerUser: { select: { id: true, name: true, email: true } },
-      messages: { orderBy: { createdAt: "asc" } },
+      messages: {
+        orderBy: { createdAt: "asc" },
+        include: { attachments: { orderBy: { createdAt: "asc" } } },
+      },
     },
   });
 
@@ -112,7 +116,10 @@ export default async function ConversationPage({
                     : "rounded-bl-sm bg-muted text-foreground"
                 )}
               >
-                <p className="whitespace-pre-line">{message.body}</p>
+                {message.body ? (
+                  <p className="whitespace-pre-line">{message.body}</p>
+                ) : null}
+                <MessageAttachments attachments={message.attachments} />
                 <p className={cn("mt-1 text-[11px]", mine ? "text-white/60" : "text-muted-foreground")}>
                   {message.createdAt.toLocaleString()}
                 </p>
