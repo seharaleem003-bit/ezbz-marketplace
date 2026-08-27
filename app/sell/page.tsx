@@ -2,7 +2,9 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 import { prisma } from "@/lib/prisma";
-import { verifySession } from "@/lib/auth/dal";
+import { verifySession, getOptionalSession } from "@/lib/auth/dal";
+import { SELLER_SIGNUP_OPEN } from "@/lib/feature-flags";
+import { SellComingSoon } from "./coming-soon";
 import { formatCents } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { startConnectOnboardingAction } from "./onboarding/actions";
@@ -15,6 +17,21 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function SellDashboardPage() {
+  // While signups are closed, /sell is a public "coming soon" page rather than
+  // a login wall — checked before verifySession() so visitors aren't bounced to
+  // sign-in just to read that the feature isn't open. Sellers already approved
+  // keep their dashboard.
+  if (!SELLER_SIGNUP_OPEN) {
+    const visitorId = (await getOptionalSession())?.user?.id;
+    const approved = visitorId
+      ? await prisma.seller.findFirst({
+          where: { userId: visitorId, status: "APPROVED" },
+          select: { id: true },
+        })
+      : null;
+    if (!approved) return <SellComingSoon />;
+  }
+
   const session = await verifySession();
   const seller = await prisma.seller.findUnique({
     where: { userId: session.user.id },

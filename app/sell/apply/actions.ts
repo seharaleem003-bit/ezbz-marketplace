@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { prisma } from "@/lib/prisma";
 import { verifySession } from "@/lib/auth/dal";
+import { SELLER_SIGNUP_OPEN } from "@/lib/feature-flags";
 import { sellerApplicationSchema } from "@/lib/validation/seller";
 
 export type SellerApplyState =
@@ -14,6 +15,11 @@ export async function applyToSellAction(
   _prevState: SellerApplyState,
   formData: FormData
 ): Promise<SellerApplyState> {
+  // Server Actions are callable directly, so the page-level guard isn't enough.
+  if (!SELLER_SIGNUP_OPEN) {
+    redirect("/sell");
+  }
+
   const session = await verifySession();
 
   const existing = await prisma.seller.findUnique({ where: { userId: session.user.id } });

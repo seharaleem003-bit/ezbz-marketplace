@@ -233,6 +233,13 @@
     "postalCode": "Postal code",
     "country": "Country"
   },
+  "sell": {
+    "comingSoonBadge": "Coming soon",
+    "comingSoonTitle": "Selling on EZBZ is coming soon",
+    "comingSoonBlurb": "We're opening the marketplace to sellers shortly. For now every deal on EZBZ is sourced and shipped by us, so you get one place to complain to and one place to return to. Check back soon — or get in touch if you'd like to be told the moment applications open.",
+    "comingSoonShop": "Shop today's deals",
+    "comingSoonContact": "Contact us"
+  },
   "footer": {
     "tagline": "Discounted deals with Deal Score™ ratings, so you know exactly what you're buying.",
     "company": "Company",

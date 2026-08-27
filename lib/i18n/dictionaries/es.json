@@ -233,6 +233,13 @@
     "postalCode": "Código postal",
     "country": "País"
   },
+  "sell": {
+    "comingSoonBadge": "Muy pronto",
+    "comingSoonTitle": "Vender en EZBZ estará disponible muy pronto",
+    "comingSoonBlurb": "Abriremos el marketplace a vendedores en breve. Por ahora, cada oferta de EZBZ la seleccionamos y enviamos nosotros, así que tienes un solo lugar para reclamar y un solo lugar para devolver. Vuelve pronto — o escríbenos si quieres que te avisemos en cuanto se abran las solicitudes.",
+    "comingSoonShop": "Ver las ofertas de hoy",
+    "comingSoonContact": "Contáctanos"
+  },
   "footer": {
     "tagline": "Ofertas con descuento y calificación Deal Score™, para que sepas exactamente qué estás comprando.",
     "company": "Empresa",

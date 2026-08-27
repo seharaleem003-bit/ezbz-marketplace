@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 
 import { prisma } from "@/lib/prisma";
 import { verifySession } from "@/lib/auth/dal";
+import { SELLER_SIGNUP_OPEN } from "@/lib/feature-flags";
 import { SellerApplyForm } from "./apply-form";
 
 export const metadata: Metadata = {
@@ -10,6 +11,12 @@ export const metadata: Metadata = {
 };
 
 export default async function SellApplyPage() {
+  // The form is unreachable through the UI while signups are closed, but the
+  // URL is guessable — send people to the coming-soon page instead.
+  if (!SELLER_SIGNUP_OPEN) {
+    redirect("/sell");
+  }
+
   const session = await verifySession();
 
   const existing = await prisma.seller.findUnique({ where: { userId: session.user.id } });
