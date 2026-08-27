@@ -11,7 +11,9 @@
     "language": "Language",
     "allDepartments": "All departments",
     "shopAll": "Shop all",
-    "freeShippingNote": "Free shipping over $200"
+    "freeShippingNote": "Free shipping over $200",
+    "comingSoon": "Soon",
+    "sellingComingSoonHint": "Seller applications open in a few weeks"
   },
   "categories": {
     "pet": "Pet",
@@ -236,7 +238,7 @@
   "sell": {
     "comingSoonBadge": "Coming soon",
     "comingSoonTitle": "Selling on EZBZ is coming soon",
-    "comingSoonBlurb": "We're opening the marketplace to sellers shortly. For now every deal on EZBZ is sourced and shipped by us, so you get one place to complain to and one place to return to. Check back soon — or get in touch if you'd like to be told the moment applications open.",
+    "comingSoonBlurb": "Seller applications open in a few weeks. For now every deal on EZBZ is sourced and shipped by us, so you get one place to complain to and one place to return to. Get in touch if you'd like to be told the moment applications open.",
     "comingSoonShop": "Shop today's deals",
     "comingSoonContact": "Contact us"
   },

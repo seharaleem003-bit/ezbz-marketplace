@@ -16,6 +16,7 @@ import { auth } from "@/lib/auth";
 import { getCartItemCount } from "@/lib/cart";
 import { prisma } from "@/lib/prisma";
 import { FEATURED_CATEGORIES } from "@/lib/featured-categories";
+import { SELLER_SIGNUP_OPEN } from "@/lib/feature-flags";
 import { DepartmentMenu } from "@/components/department-menu";
 import { getDictionary, getLocale } from "@/lib/i18n";
 import { LanguageSwitcher } from "@/components/language-switcher";
@@ -47,6 +48,20 @@ export async function SiteHeader() {
     getLocale(),
   ]);
   const dict = await getDictionary();
+
+  // Sellers already approved keep working access while signups are parked;
+  // for everyone else the button is disabled and badged "coming soon".
+  const sellerId = session?.user?.id;
+  const canSell =
+    SELLER_SIGNUP_OPEN ||
+    (sellerId
+      ? Boolean(
+          await prisma.seller.findFirst({
+            where: { userId: sellerId, status: "APPROVED" },
+            select: { id: true },
+          })
+        )
+      : false);
 
   // Full tree for the department menu — top-level entries with their children.
   const allCategories = await prisma.category.findMany({
@@ -100,15 +115,31 @@ export async function SiteHeader() {
         </form>
 
         <div className="flex shrink-0 items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="hidden rounded-full border-navy-800/25 font-semibold text-navy-800 hover:bg-navy-800/5 sm:inline-flex"
-            render={<Link href="/sell" />}
-          >
-            <Store />
-            {dict.header.startSelling}
-          </Button>
+          {canSell ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="hidden rounded-full border-navy-800/25 font-semibold text-navy-800 hover:bg-navy-800/5 sm:inline-flex"
+              render={<Link href="/sell" />}
+            >
+              <Store />
+              {dict.header.startSelling}
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled
+              title={dict.header.sellingComingSoonHint}
+              className="hidden rounded-full border-navy-800/25 font-semibold text-navy-800 opacity-100 disabled:cursor-not-allowed disabled:opacity-60 sm:inline-flex"
+            >
+              <Store />
+              {dict.header.startSelling}
+              <span className="ml-1 rounded-full bg-gold-500 px-1.5 py-0.5 text-[10px] font-bold uppercase leading-none tracking-wide text-navy-900">
+                {dict.header.comingSoon}
+              </span>
+            </Button>
+          )}
           <GetAppDialog qrCodeDataUrl={qrCodeDataUrl} label={dict.header.getTheApp} />
           <LanguageSwitcher current={locale} label={dict.header.language} />
           <Button

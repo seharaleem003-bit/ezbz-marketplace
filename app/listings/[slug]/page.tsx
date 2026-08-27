@@ -6,7 +6,7 @@ import type { Metadata } from "next";
 import { Flag, Heart, Share2 } from "lucide-react";
 
 import { getListingBySlug } from "@/lib/listings";
-import { formatCents, formatCondition, formatJoinedDate, formatRelativeTime } from "@/lib/format";
+import { formatCents, formatCondition, formatJoinedDate } from "@/lib/format";
 import { getOptionalSession } from "@/lib/auth/dal";
 import { getDictionary, getLocale, t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
@@ -198,33 +198,36 @@ export default async function ListingDetailPage({
           <h1 className="text-2xl font-heading font-semibold">{listing.title}</h1>
         </div>
 
-        <p className="text-sm text-muted-foreground">
-          Posted {formatRelativeTime(listing.createdAt)}
-          {locationLabel ? ` in ${locationLabel}` : ""}
-        </p>
+        {/* No "posted N days ago": stock is loaded in bulk, so the date says
+            something about when the catalogue was imported, not about the item,
+            and makes fresh inventory read as stale. */}
+        {locationLabel ? (
+          <p className="text-sm text-muted-foreground">{locationLabel}</p>
+        ) : null}
 
-        <div className="flex items-center gap-3 rounded-lg border p-3">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-navy-900 text-sm font-semibold text-white">
-            {sellerName.slice(0, 1).toUpperCase()}
-          </div>
-          <div>
-            {listing.seller ? (
-              <Link href={`/shops/${listing.seller.id}`} className="font-medium hover:underline">
-                {sellerName}
-              </Link>
-            ) : (
-              <span className="font-medium">{sellerName}</span>
-            )}
-            <p className="text-xs text-muted-foreground">
-              Joined {formatJoinedDate(listing.seller?.createdAt ?? listing.createdAt)}
-            </p>
-          </div>
-        </div>
+        {/* The seller card is provenance for third-party listings. On
+            EZBZ-direct stock it just repeats our own name back at the shopper,
+            so it only renders when there's an actual seller behind the item. */}
         {listing.seller ? (
-          <SellerTrustBadges
-            badgeTier={listing.seller.badgeTier}
-            identityVerified={listing.seller.stripeOnboardingComplete}
-          />
+          <>
+            <div className="flex items-center gap-3 rounded-lg border p-3">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-navy-900 text-sm font-semibold text-white">
+                {sellerName.slice(0, 1).toUpperCase()}
+              </div>
+              <div>
+                <Link href={`/shops/${listing.seller.id}`} className="font-medium hover:underline">
+                  {sellerName}
+                </Link>
+                <p className="text-xs text-muted-foreground">
+                  Joined {formatJoinedDate(listing.seller.createdAt)}
+                </p>
+              </div>
+            </div>
+            <SellerTrustBadges
+              badgeTier={listing.seller.badgeTier}
+              identityVerified={listing.seller.stripeOnboardingComplete}
+            />
+          </>
         ) : null}
 
         <AmazonPriceCompare
