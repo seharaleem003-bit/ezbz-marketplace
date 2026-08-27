@@ -36,7 +36,12 @@ export default async function AdminListingsPage() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-heading font-semibold">Listings</h1>
-        <Button render={<Link href="/admin/listings/new" />}>New listing</Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" render={<Link href="/admin/listings/import" />}>
+            Import from file
+          </Button>
+          <Button render={<Link href="/admin/listings/new" />}>New listing</Button>
+        </div>
       </div>
 
       <div className="overflow-x-auto rounded-xl bg-card ring-1 ring-foreground/10">
