@@ -9,6 +9,13 @@ export interface ListingFormDefaults {
   retailPrice: string;
   amazonPrice: string;
   amazonUrl: string;
+  metaTitle: string;
+  metaDescription: string;
+  searchKeywords: string;
+  weightLb: string;
+  lengthIn: string;
+  widthIn: string;
+  heightIn: string;
   inventoryQty: string;
   photoUrls: string;
   videoUrl: string;
@@ -30,6 +37,13 @@ export const EMPTY_LISTING_FORM_DEFAULTS: ListingFormDefaults = {
   retailPrice: "",
   amazonPrice: "",
   amazonUrl: "",
+  metaTitle: "",
+  metaDescription: "",
+  searchKeywords: "",
+  weightLb: "",
+  lengthIn: "",
+  widthIn: "",
+  heightIn: "",
   inventoryQty: "0",
   photoUrls: "",
   videoUrl: "",

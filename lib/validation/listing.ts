@@ -8,6 +8,15 @@ function optionalDollarAmount() {
   }, z.number().nonnegative("Must be zero or greater").optional());
 }
 
+/** Blank means "not measured yet"; zero is rejected since a real parcel has size. */
+function optionalPositiveNumber() {
+  return z.preprocess((val) => {
+    if (typeof val !== "string" || val.trim() === "") return undefined;
+    const num = Number(val);
+    return Number.isNaN(num) ? undefined : num;
+  }, z.number().positive("Must be greater than 0").optional());
+}
+
 function optionalUrl() {
   return z.preprocess(
     (val) => (typeof val === "string" && val.trim() !== "" ? val.trim() : undefined),
@@ -36,6 +45,27 @@ export const listingFormSchema = z.object({
   retailPrice: optionalDollarAmount(),
   amazonPrice: optionalDollarAmount(),
   amazonUrl: optionalUrl(),
+  // Capped at the lengths search engines actually render, so an over-long
+  // entry is rejected at the form rather than silently truncated in results.
+  metaTitle: z.preprocess(
+    (val) => (typeof val === "string" && val.trim() !== "" ? val.trim() : undefined),
+    z.string().max(70, "Keep the SEO title under 70 characters").optional()
+  ),
+  metaDescription: z.preprocess(
+    (val) => (typeof val === "string" && val.trim() !== "" ? val.trim() : undefined),
+    z.string().max(200, "Keep the meta description under 200 characters").optional()
+  ),
+  searchKeywords: z.preprocess(
+    (val) => (typeof val === "string" && val.trim() !== "" ? val.trim() : undefined),
+    z.string().max(500).optional()
+  ),
+  // Parcel measurements, entered in US units. Live Easyship rates need all
+  // four; any missing one drops the whole cart back to a flat estimate
+  // (see isFullyMeasured in lib/shipping.ts).
+  weightLb: optionalPositiveNumber(),
+  lengthIn: optionalPositiveNumber(),
+  widthIn: optionalPositiveNumber(),
+  heightIn: optionalPositiveNumber(),
   inventoryQty: z.preprocess((val) => {
     if (typeof val !== "string" || val.trim() === "") return 0;
     const num = Number(val);

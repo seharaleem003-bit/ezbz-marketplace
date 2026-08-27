@@ -330,6 +330,17 @@ model Listing {
   amazonUrl            String?
   amazonPriceCheckedAt DateTime?
 
+  // Search-engine copy, kept separate from the on-page title/description so
+  // the listing can read naturally to a shopper while the <title> and meta
+  // description stay inside the lengths Google actually renders. Null falls
+  // back to the listing's own title/description.
+  metaTitle       String?
+  metaDescription String?
+  // Comma-separated search terms used for on-site search relevance and as
+  // keyword hints; not emitted as a meta keywords tag, which search engines
+  // ignored two decades ago.
+  searchKeywords  String?
+
   // A listing belongs to at most one of: a Seller, a Fundraiser, or neither
   // (neither = EZBZ-direct inventory, the Phase 1 default). Enforced at the
   // application layer, not the DB, since Postgres has no native XOR constraint.

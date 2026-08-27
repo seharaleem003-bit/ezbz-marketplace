@@ -1,7 +1,7 @@
 import { Truck } from "lucide-react";
 
 import { formatCents } from "@/lib/format";
-import { FREE_SHIPPING_THRESHOLD_CENTS } from "@/lib/shipping";
+import { FREE_SHIPPING_ALWAYS, FREE_SHIPPING_THRESHOLD_CENTS } from "@/lib/shipping";
 
 export function FreeShippingMeter({
   subtotalCents,
@@ -19,6 +19,22 @@ export function FreeShippingMeter({
     progressLabel: string;
   };
 }) {
+  // With shipping free on everything there is no threshold to progress
+  // toward, and the bar would divide by zero. Show a plain statement instead.
+  if (FREE_SHIPPING_ALWAYS) {
+    return (
+      <div className="rounded-lg border bg-muted/40 p-3">
+        <div className="flex items-start gap-2">
+          <Truck className="size-4 text-gold-600" />
+          <p className="text-sm">
+            <span className="font-semibold text-foreground">{labels.unlocked}</span>{" "}
+            <span className="text-muted-foreground">{labels.deliveryOnUs}</span>
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   const unlocked = remainingForFreeCents === 0;
   const progress = Math.min(100, Math.round((subtotalCents / FREE_SHIPPING_THRESHOLD_CENTS) * 100));
 

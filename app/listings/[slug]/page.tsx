@@ -37,9 +37,21 @@ export async function generateMetadata({
   const listing = await getListingBySlug(slug);
   if (!listing) return {};
 
+  // Purpose-written SEO copy wins when it exists; otherwise fall back to the
+  // listing's own title and description.
+  const title = listing.metaTitle ?? listing.title;
+  const description = listing.metaDescription ?? listing.description.slice(0, 160);
+
   return {
-    title: listing.title,
-    description: listing.description.slice(0, 160),
+    title,
+    description,
+    alternates: { canonical: `/listings/${listing.slug}` },
+    openGraph: {
+      title,
+      description,
+      type: "website",
+      images: listing.photos[0]?.url ? [listing.photos[0].url] : undefined,
+    },
   };
 }
 

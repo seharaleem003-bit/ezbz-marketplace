@@ -148,8 +148,8 @@ export async function getHeroTiles(): Promise<HeroTile[]> {
   const tiles: HeroTile[] = [
     {
       id: "free-shipping",
-      kicker: "Get free delivery on your order",
-      headline: "Free shipping over $200",
+      kicker: "No minimum, no threshold",
+      headline: "Free shipping on every order",
       ctaLabel: "Start shopping",
       href: "/listings",
       background: "bg-[#1a56db]",

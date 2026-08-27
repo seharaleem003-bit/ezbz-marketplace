@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { prisma } from "@/lib/prisma";
 import { ListingForm } from "../listing-form";
+import { AiDrafter } from "../ai-drafter";
 import { EMPTY_LISTING_FORM_DEFAULTS } from "../listing-form-defaults";
 import { createListingAction } from "../actions";
 
@@ -20,6 +21,9 @@ export default async function NewListingPage() {
   return (
     <div>
       <h1 className="mb-6 text-2xl font-heading font-semibold">New listing</h1>
+      <div className="max-w-2xl">
+        <AiDrafter />
+      </div>
       <ListingForm
         showPrebook
         action={createListingAction}

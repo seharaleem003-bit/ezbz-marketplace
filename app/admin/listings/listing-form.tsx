@@ -252,6 +252,103 @@ export function ListingForm({
         </div>
       </div>
 
+      {/* Parcel measurements. Easyship can only return live rates when all
+          four are present — any gap and the cart silently falls back to a flat
+          estimate, so the hint says so rather than leaving it a mystery. */}
+      <fieldset className="rounded-lg border p-4">
+        <legend className="px-1 text-sm font-semibold">Shipping box</legend>
+        <p className="mb-3 text-xs text-muted-foreground">
+          Fill in all four to get live carrier rates and buy labels. Leave any blank and this
+          item falls back to a flat shipping estimate.
+        </p>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="weightLb">Weight (lb)</Label>
+            <Input
+              id="weightLb"
+              name="weightLb"
+              type="number"
+              step="0.01"
+              min="0"
+              defaultValue={defaults.weightLb}
+            />
+            {errors.weightLb ? (
+              <p className="text-sm text-destructive">{errors.weightLb[0]}</p>
+            ) : null}
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="lengthIn">Length (in)</Label>
+            <Input
+              id="lengthIn"
+              name="lengthIn"
+              type="number"
+              step="0.1"
+              min="0"
+              defaultValue={defaults.lengthIn}
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="widthIn">Width (in)</Label>
+            <Input
+              id="widthIn"
+              name="widthIn"
+              type="number"
+              step="0.1"
+              min="0"
+              defaultValue={defaults.widthIn}
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="heightIn">Height (in)</Label>
+            <Input
+              id="heightIn"
+              name="heightIn"
+              type="number"
+              step="0.1"
+              min="0"
+              defaultValue={defaults.heightIn}
+            />
+          </div>
+        </div>
+      </fieldset>
+
+      {/* Search engine copy. Left blank, the listing's own title and
+          description are used, so this is an override rather than a
+          requirement. */}
+      <fieldset className="rounded-lg border p-4">
+        <legend className="px-1 text-sm font-semibold">Search engine listing</legend>
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="metaTitle">SEO title (optional, ~60 characters)</Label>
+            <Input id="metaTitle" name="metaTitle" defaultValue={defaults.metaTitle} />
+            {errors.metaTitle ? (
+              <p className="text-sm text-destructive">{errors.metaTitle[0]}</p>
+            ) : null}
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="metaDescription">Meta description (optional, ~155 characters)</Label>
+            <textarea
+              id="metaDescription"
+              name="metaDescription"
+              rows={2}
+              defaultValue={defaults.metaDescription}
+              className="rounded-lg border border-input bg-transparent px-2.5 py-1.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+            />
+            {errors.metaDescription ? (
+              <p className="text-sm text-destructive">{errors.metaDescription[0]}</p>
+            ) : null}
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="searchKeywords">Search keywords (optional, comma separated)</Label>
+            <Input
+              id="searchKeywords"
+              name="searchKeywords"
+              defaultValue={defaults.searchKeywords}
+            />
+          </div>
+        </div>
+      </fieldset>
+
       <div className="flex flex-col gap-1.5">
         <Label>Photos</Label>
         <PhotoUploader name="photoUrls" defaultUrls={defaultPhotoUrls} />

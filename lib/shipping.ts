@@ -7,9 +7,19 @@ import {
   type EasyshipRateItem,
 } from "@/lib/easyship";
 
-// Spend this much (before store credit) and delivery is free. Surfaced at
-// checkout as a "you're $X away" nudge to lift basket size.
-export const FREE_SHIPPING_THRESHOLD_CENTS = 20_000;
+/**
+ * EZBZ absorbs delivery on every order — there is no minimum.
+ *
+ * Carrier rating still runs underneath: the buyer is simply never charged the
+ * result. That keeps the real cost visible in the admin panel and preserves
+ * the carrier's transit window for delivery estimates, which a blanket
+ * "shipping is zero" short-circuit would throw away.
+ */
+export const FREE_SHIPPING_ALWAYS = true;
+
+// Retained so the old threshold copy and any callers still compile; with
+// FREE_SHIPPING_ALWAYS on, nothing is ever below it.
+export const FREE_SHIPPING_THRESHOLD_CENTS = 0;
 
 // Flat estimates used until a listing carries real weight/dimensions. Banded
 // by order value so a cheap trinket isn't quoted the same as a sofa. These are
@@ -110,7 +120,20 @@ export async function quoteShipping({
 
   const remainingForFreeCents = Math.max(0, FREE_SHIPPING_THRESHOLD_CENTS - subtotalCents);
 
-  if (remainingForFreeCents === 0) {
+  // Rating continues below even when delivery is free, so the carrier and its
+  // transit window are still known; `free()` zeroes only what the buyer pays.
+  const free = (quote: ShippingQuote): ShippingQuote =>
+    FREE_SHIPPING_ALWAYS
+      ? {
+          ...quote,
+          shippingCents: 0,
+          source: "free",
+          label: "Free shipping",
+          remainingForFreeCents: 0,
+        }
+      : quote;
+
+  if (!FREE_SHIPPING_ALWAYS && remainingForFreeCents === 0) {
     return {
       shippingCents: 0,
       source: "free",
@@ -132,7 +155,7 @@ export async function quoteShipping({
         .sort((a, b) => a.totalCents - b.totalCents)[0];
 
       if (cheapest) {
-        return {
+        return free({
           shippingCents: cheapest.totalCents,
           source: "live",
           label: `${cheapest.courierName} ${cheapest.serviceName}`,
@@ -140,7 +163,7 @@ export async function quoteShipping({
           carrier: cheapest.courierName,
           estimatedDaysMin: cheapest.minDeliveryDays,
           estimatedDaysMax: cheapest.maxDeliveryDays,
-        };
+        });
       }
     } catch (error) {
       // Never block checkout on a rating failure — fall through to the estimate.
@@ -148,10 +171,10 @@ export async function quoteShipping({
     }
   }
 
-  return {
+  return free({
     shippingCents: estimateFor(subtotalCents),
     source: "estimated",
     label: "Estimated standard shipping",
     remainingForFreeCents,
-  };
+  });
 }
