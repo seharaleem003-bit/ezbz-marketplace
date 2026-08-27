@@ -19,16 +19,42 @@ export interface ImportRow {
   condition: string | null;
   colour: string | null;
   imageUrls: string[];
+  /** Drives the "% off vs Amazon" badge and Deal Score. */
+  amazonPriceCents: number | null;
+  amazonUrl: string | null;
+  retailPriceCents: number | null;
+  /** Blank means "use the default"; 0 is a real answer (out of stock). */
+  quantity: number | null;
+  /** Parcel data — all four needed before Easyship will quote. */
+  weightLb: number | null;
+  lengthIn: number | null;
+  widthIn: number | null;
+  heightIn: number | null;
   /** Anything that stopped this row importing. */
   problem?: string;
 }
 
-const HEADER_ALIASES: Record<keyof Omit<ImportRow, "rowNumber" | "imageUrls" | "problem">, string[]> = {
+type MappedField = Exclude<
+  keyof ImportRow,
+  "rowNumber" | "imageUrls" | "problem"
+>;
+
+// Order matters: more specific aliases are checked before looser ones, so an
+// "Amazon Price" column isn't swallowed by the plain "price" matcher.
+const HEADER_ALIASES: Record<MappedField, string[]> = {
+  amazonPriceCents: ["amazon price", "amazon", "price on amazon", "competitor price"],
+  amazonUrl: ["amazon link", "amazon url", "competitor link"],
+  retailPriceCents: ["retail price", "rrp", "msrp", "list price", "was price"],
   title: ["title", "product title", "products title", "name", "product name", "item"],
   description: ["description", "product description", "products description", "details"],
   priceCents: ["price", "product price", "products price", "cost", "usd", "amount"],
   condition: ["condition", "product condition", "products condtion", "products condition"],
   colour: ["color", "colour", "product color"],
+  quantity: ["quantity", "qty", "stock", "inventory", "units"],
+  weightLb: ["weight", "weight lb", "weight lbs", "lbs", "lb"],
+  lengthIn: ["length", "length in", "len"],
+  widthIn: ["width", "width in"],
+  heightIn: ["height", "height in"],
 };
 
 const IMAGE_HEADER_HINTS = ["image", "photo", "picture", "img"];
@@ -115,20 +141,32 @@ export async function parseCatalogFile(
     headers[col] = cellText(cell.value);
   });
 
-  // Map each wanted field to a column index.
-  const columnFor: Partial<Record<keyof typeof HEADER_ALIASES, number>> = {};
+  // Map each wanted field to a column index. A column is claimed by the first
+  // field that matches it, and a field only claims one column, so "Price" and
+  // "Amazon Price" can't both end up pointing at the same cell.
+  const columnFor: Partial<Record<MappedField, number>> = {};
+  const claimed = new Set<number>();
   const imageColumns: number[] = [];
 
   headers.forEach((header, col) => {
     if (!header) return;
     const n = normalise(header);
-    for (const [field, aliases] of Object.entries(HEADER_ALIASES)) {
-      const key = field as keyof typeof HEADER_ALIASES;
-      if (columnFor[key] != null) continue;
-      if (aliases.some((a) => n === a || n.includes(a))) columnFor[key] = col;
+    if (IMAGE_HEADER_HINTS.some((h) => n.includes(h))) {
+      imageColumns.push(col);
+      claimed.add(col);
     }
-    if (IMAGE_HEADER_HINTS.some((h) => n.includes(h))) imageColumns.push(col);
   });
+
+  for (const [field, aliases] of Object.entries(HEADER_ALIASES) as [MappedField, string[]][]) {
+    headers.forEach((header, col) => {
+      if (!header || claimed.has(col) || columnFor[field] != null) return;
+      const n = normalise(header);
+      if (aliases.some((a) => n === a || n.includes(a))) {
+        columnFor[field] = col;
+        claimed.add(col);
+      }
+    });
+  }
 
   if (columnFor.title == null) {
     return {
@@ -143,9 +181,19 @@ export async function parseCatalogFile(
   sheet.eachRow((row, rowNumber) => {
     if (rowNumber === 1) return;
 
-    const get = (key: keyof typeof HEADER_ALIASES) => {
+    const get = (key: MappedField) => {
       const col = columnFor[key];
       return col == null ? "" : cellText(row.getCell(col).value);
+    };
+    const num = (key: MappedField): number | null => {
+      const raw = get(key).replace(/[^0-9.]/g, "");
+      if (!raw) return null;
+      const v = Number(raw);
+      return Number.isFinite(v) ? v : null;
+    };
+    const cents = (key: MappedField) => {
+      const v = num(key);
+      return v != null && v > 0 ? Math.round(v * 100) : null;
     };
 
     const title = get("title");
@@ -159,6 +207,8 @@ export async function parseCatalogFile(
       columnFor.priceCents == null ? null : row.getCell(columnFor.priceCents).value
     );
 
+    const quantity = num("quantity");
+
     rows.push({
       rowNumber,
       title,
@@ -167,6 +217,14 @@ export async function parseCatalogFile(
       condition: parseCondition(get("condition") || null),
       colour: get("colour") || null,
       imageUrls: images,
+      amazonPriceCents: cents("amazonPriceCents"),
+      amazonUrl: usableImageUrl(get("amazonUrl")) ?? (get("amazonUrl") || null),
+      retailPriceCents: cents("retailPriceCents"),
+      quantity: quantity != null && quantity >= 0 ? Math.round(quantity) : null,
+      weightLb: num("weightLb"),
+      lengthIn: num("lengthIn"),
+      widthIn: num("widthIn"),
+      heightIn: num("heightIn"),
       problem: priceCents == null ? "No usable price" : undefined,
     });
   });

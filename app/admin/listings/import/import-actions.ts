@@ -7,6 +7,7 @@ import { requireAdmin } from "@/lib/auth/dal";
 import { parseCatalogFile, type ImportRow } from "@/lib/catalog-import";
 import { categorizeProducts, isAiCategorizeConfigured } from "@/lib/ai-categorize";
 import { type CategoryNode } from "@/lib/listings";
+import { computeDealScore } from "@/lib/deal-score";
 
 export interface ImportReport {
   imported: number;
@@ -168,16 +169,38 @@ export async function importCatalogAction(
       ? `${row.description}\n\nColour: ${row.colour}`
       : row.description;
 
+    const priceCents = row.priceCents as number;
+    const condition = (row.condition ?? "NEW") as "NEW";
+
     await prisma.listing.create({
       data: {
         slug,
         title: row.title,
         description,
         categoryId,
-        condition: (row.condition ?? "NEW") as "NEW",
+        condition,
         status: publish ? "PUBLISHED" : "DRAFT",
-        priceCents: row.priceCents as number,
-        inventoryQty: DEFAULT_INVENTORY,
+        priceCents,
+        retailPriceCents: row.retailPriceCents,
+        amazonPriceCents: row.amazonPriceCents,
+        amazonUrl: row.amazonUrl,
+        // Only meaningful once a comparison price exists; without one the
+        // badge and Deal Score have nothing to measure against.
+        amazonPriceCheckedAt: row.amazonPriceCents ? new Date() : null,
+        dealScore: computeDealScore({
+          priceCents,
+          retailPriceCents: row.retailPriceCents,
+          amazonPriceCents: row.amazonPriceCents,
+          condition,
+        }),
+        dealScoreUpdatedAt: new Date(),
+        // Metric in the database because that's what Easyship takes; the
+        // sheet is in lb/in because that's what a warehouse tape measure reads.
+        weightGrams: row.weightLb != null ? Math.round(row.weightLb * 453.59237) : null,
+        lengthCm: row.lengthIn != null ? Math.round(row.lengthIn * 2.54) : null,
+        widthCm: row.widthIn != null ? Math.round(row.widthIn * 2.54) : null,
+        heightCm: row.heightIn != null ? Math.round(row.heightIn * 2.54) : null,
+        inventoryQty: row.quantity ?? DEFAULT_INVENTORY,
         photos: row.imageUrls.length
           ? {
               create: row.imageUrls.map((url, i) => ({

@@ -22,11 +22,33 @@ export function ImportForm() {
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="file">Spreadsheet (.xlsx or .csv)</Label>
           <Input id="file" name="file" type="file" accept=".xlsx,.csv" required />
-          <p className="text-xs text-muted-foreground">
-            Needs a title column and a price column. Description, condition, colour and image
-            URL columns are used when present — headings are matched loosely, so
-            &ldquo;Products Price&rdquo; and &ldquo;Price&rdquo; both work.
-          </p>
+          <div className="rounded-lg bg-muted/50 p-3 text-xs">
+            <p className="font-medium">
+              Required: <span className="font-normal">Title, Price</span>
+            </p>
+            <p className="mt-1.5 font-medium">Used when present:</p>
+            <ul className="mt-1 space-y-0.5 text-muted-foreground">
+              <li>
+                <strong>Amazon Price</strong> — turns on the &ldquo;% off vs Amazon&rdquo; badge
+                and Deal Score
+              </li>
+              <li>
+                <strong>Weight (lb), Length / Width / Height (in)</strong> — all four needed for
+                live carrier rates and shipping labels
+              </li>
+              <li>
+                <strong>Quantity</strong> — stock level (defaults to 10 if absent)
+              </li>
+              <li>
+                Retail Price, Amazon Link, Description, Condition, Color, Image URL
+              </li>
+            </ul>
+            <p className="mt-2 text-muted-foreground">
+              Headings are matched loosely — &ldquo;Products Price&rdquo;, &ldquo;Price&rdquo;
+              and &ldquo;Cost&rdquo; all work. Google Drive links are ignored; they don&apos;t
+              load as images.
+            </p>
+          </div>
         </div>
 
         <label className="flex items-center gap-2 text-sm">
