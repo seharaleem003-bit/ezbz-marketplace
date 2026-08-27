@@ -74,7 +74,9 @@ export const PLATFORM_ORIGIN_ADDRESS = {
   line2: null,
   city: "Irving",
   state: "TX",
-  postalCode: "75061",
+  // 75062, matching the business address on the Stripe account. 75061 was
+  // wrong and would have rated (and labelled) from the wrong ZIP.
+  postalCode: "75062",
   countryAlpha2: "US",
 };
 
