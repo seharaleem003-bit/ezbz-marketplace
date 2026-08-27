@@ -1,28 +1,24 @@
 "use server";
 
-import crypto from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
-
 import { requireAdmin } from "@/lib/auth/dal";
+import { putFile } from "@/lib/storage";
 
 export type UploadPhotosState = { urls?: string[]; error?: string };
 
-const EXTENSION_BY_TYPE: Record<string, string> = {
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp",
-};
+const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 const MAX_FILE_BYTES = 8 * 1024 * 1024;
 
-// Saves to public/uploads/listings, served directly by Next's static file
-// handling — zero new vendor setup, works immediately for local use. This
-// is a local-disk stopgap: it will NOT survive a real deployment (most
-// hosts, including Vercel, run serverless functions with an ephemeral or
-// read-only filesystem), so before going live this needs to move to real
-// object storage (Vercel Blob, S3, Cloudflare R2, etc.) — swap out just
-// this file's write step, callers don't need to change.
+/**
+ * Stores listing photos through lib/storage.
+ *
+ * Previously wrote straight to public/uploads, which works locally and
+ * silently loses every file in production — Vercel's filesystem is ephemeral,
+ * so photos vanished on the next deploy and the listing was left pointing at
+ * a 404. Routing through putFile means uploads land in Vercel Blob when it's
+ * configured, still use local disk in development, and fail with a clear
+ * message rather than accepting a file that won't survive.
+ */
 export async function uploadListingPhotosAction(formData: FormData): Promise<UploadPhotosState> {
   await requireAdmin();
 
@@ -31,23 +27,32 @@ export async function uploadListingPhotosAction(formData: FormData): Promise<Upl
     return { error: "Choose at least one photo." };
   }
 
-  const uploadDir = path.join(process.cwd(), "public", "uploads", "listings");
-  await mkdir(uploadDir, { recursive: true });
-
-  const urls: string[] = [];
   for (const file of files) {
-    const extension = EXTENSION_BY_TYPE[file.type];
-    if (!extension) {
+    if (!ALLOWED_TYPES.includes(file.type)) {
       return { error: `"${file.name}" isn't a JPEG, PNG, or WebP image.` };
     }
     if (file.size > MAX_FILE_BYTES) {
       return { error: `"${file.name}" is larger than 8MB.` };
     }
+  }
 
-    const filename = `${crypto.randomUUID()}.${extension}`;
-    const buffer = Buffer.from(await file.arrayBuffer());
-    await writeFile(path.join(uploadDir, filename), buffer);
-    urls.push(`/uploads/listings/${filename}`);
+  const urls: string[] = [];
+  try {
+    for (const file of files) {
+      const stored = await putFile({
+        buffer: Buffer.from(await file.arrayBuffer()),
+        filename: file.name,
+        contentType: file.type,
+        prefix: "listings",
+      });
+      urls.push(stored.url);
+    }
+  } catch (error) {
+    console.error("Listing photo upload failed", error);
+    return {
+      error:
+        "Photo storage isn't set up on this deployment yet, so the upload was refused rather than lost. Connect a Vercel Blob store to the project, then try again. Pasting image URLs still works.",
+    };
   }
 
   return { urls };
