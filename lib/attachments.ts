@@ -61,15 +61,26 @@ export async function storeMessageAttachments(files: File[]): Promise<Attachment
   }
 
   const stored: StoredFile[] = [];
-  for (const file of usable) {
-    stored.push(
-      await putFile({
-        buffer: Buffer.from(await file.arrayBuffer()),
-        filename: file.name,
-        contentType: file.type,
-        prefix: "messages",
-      })
-    );
+  try {
+    for (const file of usable) {
+      stored.push(
+        await putFile({
+          buffer: Buffer.from(await file.arrayBuffer()),
+          filename: file.name,
+          contentType: file.type,
+          prefix: "messages",
+        })
+      );
+    }
+  } catch (error) {
+    // Storage being unconfigured or unreachable must not take the page down —
+    // return it as a form error so the sender keeps their typed message and
+    // can send it without the attachment.
+    console.error("Message attachment upload failed", error);
+    return {
+      error:
+        "Attachments aren't available right now. Send your message without the file, or try again later.",
+    };
   }
   return { files: stored };
 }

@@ -13,6 +13,7 @@ import { DiscountBadge, calculateDiscount } from "@/components/discount-badge";
 import { ListingGallery } from "./listing-gallery";
 import { RecommendationRow } from "@/components/recommendation-row";
 import { getSimilarListings, getBoughtTogether } from "@/lib/recommendations";
+import { isDurableStorageConfigured } from "@/lib/storage";
 import { CornerRibbon, ribbonFor } from "@/components/corner-ribbon";
 import { NotifyMeDialog } from "@/components/notify-me-dialog";
 import { AmazonPriceCompare } from "@/components/amazon-price-compare";
@@ -281,6 +282,7 @@ export default async function ListingDetailPage({
           <>
             <div className="flex gap-3">
               <ChatSellerDialog
+                attachmentsEnabled={isDurableStorageConfigured() || process.env.NODE_ENV !== "production"}
                 listingId={listing.id}
                 sellerName={sellerName}
                 quickMessages={locale === "es" ? QUICK_MESSAGES_ES : QUICK_MESSAGES}

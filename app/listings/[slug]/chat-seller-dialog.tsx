@@ -36,11 +36,14 @@ export function ChatSellerDialog({
   sellerName,
   quickMessages,
   labels,
+  attachmentsEnabled = false,
 }: {
   listingId: string;
   sellerName: string;
   quickMessages: readonly string[];
   labels: ChatLabels;
+  /** False when no durable file storage is configured — see lib/storage.ts. */
+  attachmentsEnabled?: boolean;
 }) {
   const [state, action, pending] = useActionState<ChatState, FormData>(
     sendListingMessageAction,
@@ -120,8 +123,10 @@ export function ChatSellerDialog({
 
               {/* Not `required` on the textarea any more: a photo of the item
                   is a complete message on its own, and the action rejects a
-                  submission that has neither text nor files. */}
-              <AttachmentPicker />
+                  submission that has neither text nor files. Hidden entirely
+                  when there's nowhere durable to store uploads, rather than
+                  offering a control that can only fail. */}
+              {attachmentsEnabled ? <AttachmentPicker /> : null}
               {state?.error ? (
                 <p className="text-sm text-destructive" role="alert">
                   {state.error}
