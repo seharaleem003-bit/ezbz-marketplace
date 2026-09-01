@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -7,6 +7,7 @@ import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { SupportWidget } from "@/components/support-widget";
 import { Toaster } from "@/components/ui/sonner";
+import { ServiceWorkerRegistrar } from "@/components/service-worker-registrar";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -25,6 +26,20 @@ export const metadata: Metadata = {
   },
   description:
     "Discounted deals with Deal Score™ ratings, Amazon price comparisons, and video walkarounds.",
+  // Lets iOS install EZBZ to the home screen and run it without Safari's
+  // chrome; Android reads the same intent from the manifest.
+  appleWebApp: {
+    capable: true,
+    title: "EZBZ",
+    statusBarStyle: "black-translucent",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0a1930",
+  // An installed app sits under the notch and home indicator, so the layout
+  // is allowed into that space and pads itself back out.
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -44,6 +59,7 @@ export default function RootLayout({
         <SiteFooter />
         <SupportWidget />
         <Toaster />
+        <ServiceWorkerRegistrar />
       </body>
     </html>
   );
