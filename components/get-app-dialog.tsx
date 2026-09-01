@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Download, Share, Plus } from "lucide-react";
+import { Download, Check } from "lucide-react";
 
 import {
   Dialog,
@@ -10,15 +9,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-
-/**
- * Beforeinstallprompt isn't in the DOM lib — Chromium-only, and the reason
- * Android gets a one-tap install while iOS needs written steps.
- */
-interface InstallPromptEvent extends Event {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
-}
+import { useInstall, IosSteps } from "@/components/install-prompt";
 
 export function GetAppDialog({
   qrCodeDataUrl,
@@ -27,31 +18,7 @@ export function GetAppDialog({
   qrCodeDataUrl: string;
   label: string;
 }) {
-  const [installEvent, setInstallEvent] = useState<InstallPromptEvent | null>(null);
-  const [installed, setInstalled] = useState(false);
-  const [isIos, setIsIos] = useState(false);
-
-  useEffect(() => {
-    setIsIos(/iphone|ipad|ipod/i.test(navigator.userAgent));
-    setInstalled(window.matchMedia("(display-mode: standalone)").matches);
-
-    const onPrompt = (e: Event) => {
-      // Chromium shows its own banner otherwise, at a moment we don't control.
-      e.preventDefault();
-      setInstallEvent(e as InstallPromptEvent);
-    };
-    const onInstalled = () => {
-      setInstalled(true);
-      setInstallEvent(null);
-    };
-
-    window.addEventListener("beforeinstallprompt", onPrompt);
-    window.addEventListener("appinstalled", onInstalled);
-    return () => {
-      window.removeEventListener("beforeinstallprompt", onPrompt);
-      window.removeEventListener("appinstalled", onInstalled);
-    };
-  }, []);
+  const { canInstall, installed, isIos, install } = useInstall();
 
   return (
     <Dialog>
@@ -70,71 +37,57 @@ export function GetAppDialog({
           Get the free EZ<span className="text-gold-500">BZ</span> app
         </DialogTitle>
 
-        <div className="flex flex-col items-center gap-4 py-2 text-center">
-          {installed ? (
+        {installed ? (
+          <div className="flex flex-col items-center gap-3 py-4 text-center">
+            <span className="flex size-12 items-center justify-center rounded-full bg-green-600 text-white">
+              <Check className="size-6" />
+            </span>
             <p className="text-sm text-muted-foreground">
-              EZBZ is already installed on this device — you&apos;re using it now.
+              EZBZ is already installed on this device.
             </p>
-          ) : installEvent ? (
-            <>
-              <p className="text-sm text-muted-foreground">
-                Install EZBZ for a home screen icon, full screen shopping, and faster loads.
-              </p>
-              <Button
-                onClick={async () => {
-                  await installEvent.prompt();
-                  const { outcome } = await installEvent.userChoice;
-                  if (outcome === "accepted") setInstalled(true);
-                  setInstallEvent(null);
-                }}
-                className="w-full"
-              >
+          </div>
+        ) : (
+          <div className="flex flex-col items-center gap-4 py-2 text-center">
+            {/* QR and button together, rather than one or the other: the code
+                is for moving to a phone, the button installs on the device
+                you're holding. Which one is useful depends on where you are. */}
+            {/* eslint-disable-next-line @next/next/no-img-element -- a data: URI, next/image can't optimize it and doesn't need to */}
+            <img
+              src={qrCodeDataUrl}
+              alt="Scan to install EZBZ on your phone"
+              className="size-44 rounded-lg"
+            />
+            <p className="text-sm text-muted-foreground">
+              Scan with your phone&apos;s camera — it&apos;ll offer to install EZBZ.
+            </p>
+
+            <div className="flex w-full items-center gap-3">
+              <span className="h-px flex-1 bg-border" />
+              <span className="text-xs uppercase tracking-wide text-muted-foreground">
+                or on this device
+              </span>
+              <span className="h-px flex-1 bg-border" />
+            </div>
+
+            {canInstall ? (
+              <Button className="w-full" onClick={install}>
                 <Download />
                 Install EZBZ
               </Button>
-            </>
-          ) : isIos ? (
-            // Safari has no install API, so iOS gets the actual tap sequence
-            // rather than a button that would do nothing.
-            <div className="w-full text-left text-sm">
-              <p className="mb-2 text-center text-muted-foreground">
-                Add EZBZ to your home screen:
+            ) : isIos ? (
+              <div className="w-full">
+                <IosSteps />
+              </div>
+            ) : (
+              // Chromium only fires the install event on a supported browser
+              // over HTTPS. Saying so beats a dead button.
+              <p className="text-xs text-muted-foreground">
+                Your browser can&apos;t install apps. Open ezbzmall.com in Chrome, Edge, or
+                Safari on your phone.
               </p>
-              <ol className="space-y-2">
-                <li className="flex items-center gap-2">
-                  <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">
-                    1
-                  </span>
-                  Tap <Share className="size-4" /> in Safari&apos;s toolbar
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">
-                    2
-                  </span>
-                  Choose <Plus className="size-4" /> Add to Home Screen
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">
-                    3
-                  </span>
-                  Tap Add
-                </li>
-              </ol>
-            </div>
-          ) : (
-            <>
-              <p className="text-sm text-muted-foreground">
-                Open this page on your phone to install EZBZ — scan the code below.
-              </p>
-              {/* eslint-disable-next-line @next/next/no-img-element -- a data: URI, next/image can't optimize it and doesn't need to */}
-              <img src={qrCodeDataUrl} alt="QR code to open EZBZ on your phone" className="size-44" />
-            </>
-          )}
-
-          <p className="text-xs text-muted-foreground">
-            Works on iPhone and Android. No app store needed.
-          </p>
-        </div>
+            )}
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

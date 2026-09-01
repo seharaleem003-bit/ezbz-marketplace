@@ -77,7 +77,9 @@ export async function SiteHeader() {
         .map(({ id, slug, name }) => ({ id, slug, name })),
     }));
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-  const qrCodeDataUrl = await QRCode.toDataURL(appUrl, {
+  // Points at /install so scanning lands on the page that offers to install,
+  // rather than the homepage where the visitor has to find the button again.
+  const qrCodeDataUrl = await QRCode.toDataURL(`${appUrl}/install`, {
     margin: 1,
     width: 320,
     color: { dark: "#0a1930", light: "#ffffff" },

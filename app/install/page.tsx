@@ -4,6 +4,7 @@ import QRCode from "qrcode";
 import { Zap, WifiOff, Bell } from "lucide-react";
 
 import { InstallPanel } from "./install-panel";
+import { AutoInstallPrompt } from "@/components/install-prompt";
 
 export const metadata: Metadata = {
   title: "Install the EZBZ app",
@@ -46,6 +47,10 @@ export default async function InstallPage() {
       </div>
 
       <InstallPanel qrCodeDataUrl={qrCodeDataUrl} />
+
+      {/* Someone who scanned the QR is here to install, so the prompt comes to
+          them rather than waiting to be found. */}
+      <AutoInstallPrompt />
 
       <div className="mt-8 grid gap-4 sm:grid-cols-3">
         {BENEFITS.map(({ icon: Icon, title, body }) => (
