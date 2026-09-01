@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/auth/dal";
+import { requireCatalogAccess } from "@/lib/auth/dal";
 import { isAiEnrichConfigured, enrichListingFromImage } from "@/lib/ai-listing-enrich";
 
 export type AiDraft = {
@@ -27,7 +27,7 @@ const MAX_BYTES = 10 * 1024 * 1024;
  * reachable by anyone who can merely reach the route.
  */
 export async function draftListingFromImageAction(formData: FormData): Promise<AiDraftResult> {
-  await requireAdmin();
+  await requireCatalogAccess();
 
   if (!isAiEnrichConfigured()) {
     return { error: "ANTHROPIC_API_KEY isn't set on this deployment." };

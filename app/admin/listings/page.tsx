@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
 
@@ -29,7 +30,10 @@ const STATUS_LABELS: Record<string, string> = {
 export default async function AdminListingsPage() {
   const listings = await prisma.listing.findMany({
     orderBy: { updatedAt: "desc" },
-    include: { category: true },
+    include: {
+      category: true,
+      photos: { orderBy: { sortOrder: "asc" }, take: 1, select: { url: true } },
+    },
   });
 
   return (
@@ -48,6 +52,7 @@ export default async function AdminListingsPage() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-16">Photo</TableHead>
               <TableHead>Title</TableHead>
               <TableHead>Category</TableHead>
               <TableHead>Status</TableHead>
@@ -60,6 +65,23 @@ export default async function AdminListingsPage() {
           <TableBody>
             {listings.map((listing) => (
               <TableRow key={listing.id}>
+                <TableCell>
+                  {listing.photos[0]?.url ? (
+                    <Image
+                      src={listing.photos[0].url}
+                      alt=""
+                      width={44}
+                      height={44}
+                      className="size-11 rounded-md object-cover ring-1 ring-foreground/10"
+                    />
+                  ) : (
+                    // A visible placeholder, so a listing with no photo is
+                    // obvious in the list rather than a blank cell.
+                    <span className="flex size-11 items-center justify-center rounded-md bg-muted text-[10px] text-muted-foreground">
+                      none
+                    </span>
+                  )}
+                </TableCell>
                 <TableCell className="max-w-64 truncate font-medium">
                   <Link href={`/admin/listings/${listing.id}/edit`} className="hover:underline">
                     {listing.title}

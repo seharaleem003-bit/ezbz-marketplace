@@ -35,7 +35,7 @@ export const listingFormSchema = z.object({
     .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Use lowercase letters, numbers, and hyphens only"),
   description: z.string().trim().min(1, "Description is required"),
   categoryId: z.string().trim().min(1, "Category is required"),
-  condition: z.enum(["NEW", "LIKE_NEW", "GOOD", "FAIR", "SALVAGE"]),
+  condition: z.enum(["NEW", "OPEN_BOX", "LIKE_NEW", "GOOD", "FAIR", "SALVAGE"]),
   status: z.enum(["DRAFT", "PUBLISHED", "ARCHIVED"]),
   price: z.preprocess((val) => {
     if (typeof val !== "string" || val.trim() === "") return undefined;

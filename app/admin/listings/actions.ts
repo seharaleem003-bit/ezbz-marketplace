@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/auth/dal";
+import { requireCatalogAccess } from "@/lib/auth/dal";
 import { computeDealScore } from "@/lib/deal-score";
 import { listingFormSchema, parsePhotoUrls } from "@/lib/validation/listing";
 import { notifyPrebookWaitlist } from "@/lib/prebook-notify";
@@ -45,7 +45,8 @@ function readFormValues(formData: FormData) {
 async function upsertListing(
   formData: FormData,
   existingId: string | undefined,
-  adminId: string
+  adminId: string,
+  role: string
 ): Promise<ListingFormState> {
   const parsed = listingFormSchema.safeParse(readFormValues(formData));
   if (!parsed.success) {
@@ -58,6 +59,17 @@ async function upsertListing(
   }
 
   const data = parsed.data;
+
+  // Staff build the catalogue but don't decide what goes live. Enforced here
+  // rather than by hiding the dropdown, because a hidden field is not a
+  // permission — the form value is whatever the browser chooses to send.
+  if (role === "STAFF" && data.status !== "DRAFT") {
+    return {
+      fieldErrors: {
+        status: ["Only an admin can publish. Save as Draft and ask an admin to review it."],
+      },
+    };
+  }
 
   const slugOwner = await prisma.listing.findUnique({ where: { slug: data.slug } });
   if (slugOwner && slugOwner.id !== existingId) {
@@ -184,8 +196,8 @@ export async function createListingAction(
   _prevState: ListingFormState,
   formData: FormData
 ): Promise<ListingFormState> {
-  const session = await requireAdmin();
-  return upsertListing(formData, undefined, session.user.id);
+  const session = await requireCatalogAccess();
+  return upsertListing(formData, undefined, session.user.id, session.user.role);
 }
 
 export async function updateListingAction(
@@ -193,15 +205,20 @@ export async function updateListingAction(
   _prevState: ListingFormState,
   formData: FormData
 ): Promise<ListingFormState> {
-  const session = await requireAdmin();
-  return upsertListing(formData, listingId, session.user.id);
+  const session = await requireCatalogAccess();
+  return upsertListing(formData, listingId, session.user.id, session.user.role);
 }
 
 export async function setListingStatusAction(
   listingId: string,
   status: "DRAFT" | "PUBLISHED" | "ARCHIVED"
 ) {
-  await requireAdmin();
+  const session = await requireCatalogAccess();
+  // The status buttons on the listings table are a second route to publishing,
+  // so they need the same gate as the form.
+  if (session.user.role === "STAFF" && status !== "DRAFT") {
+    throw new Error("Only an admin can publish or archive a listing.");
+  }
 
   const listing = await prisma.listing.update({
     where: { id: listingId },

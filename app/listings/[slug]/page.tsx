@@ -64,11 +64,13 @@ export default async function ListingDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const listing = await getListingBySlug(slug);
+  const session = await getOptionalSession();
+  const canSeeDrafts =
+    session?.user?.role === "ADMIN" || session?.user?.role === "STAFF";
+  const listing = await getListingBySlug(slug, canSeeDrafts);
   if (!listing) notFound();
 
   const dict = await getDictionary();
-  const session = await getOptionalSession();
   const existingWatch = session?.user
     ? await prisma.watch.findUnique({
         where: { userId_listingId: { userId: session.user.id, listingId: listing.id } },
@@ -125,6 +127,19 @@ export default async function ListingDetailPage({
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-10">
+      {/* Only reachable by admin/staff — a shopper hitting an unpublished slug
+          gets a 404, so this can't leak. */}
+      {listing.status !== "PUBLISHED" ? (
+        <div className="mb-6 rounded-lg border border-gold-500 bg-gold-500/10 px-4 py-3 text-sm">
+          <strong>Preview — {listing.status.toLowerCase()}.</strong> Shoppers can&apos;t see this
+          page. An admin can publish it from{" "}
+          <Link href="/admin/listings" className="underline">
+            Listings
+          </Link>
+          .
+        </div>
+      ) : null}
+
       <div className="grid gap-8 lg:grid-cols-2">
       <ListingGallery
         photos={listing.photos.map((photo) => ({

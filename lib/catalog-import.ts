@@ -85,13 +85,14 @@ function parsePrice(raw: unknown): number | null {
   return Number.isFinite(value) && value > 0 ? Math.round(value * 100) : null;
 }
 
-const CONDITIONS = ["NEW", "LIKE_NEW", "GOOD", "FAIR", "SALVAGE"];
+const CONDITIONS = ["NEW", "OPEN_BOX", "LIKE_NEW", "GOOD", "FAIR", "SALVAGE"];
 
 function parseCondition(raw: string | null): string | null {
   if (!raw) return null;
   const n = normalise(raw).replace(/\s+/g, "_").toUpperCase();
   if (CONDITIONS.includes(n)) return n;
   if (n.startsWith("NEW")) return "NEW";
+  if (n.includes("OPEN") && n.includes("BOX")) return "OPEN_BOX";
   if (n.includes("LIKE")) return "LIKE_NEW";
   if (n.startsWith("GOOD") || n.includes("USED")) return "GOOD";
   if (n.startsWith("FAIR")) return "FAIR";

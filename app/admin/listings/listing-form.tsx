@@ -26,6 +26,7 @@ function slugify(value: string) {
 
 const CONDITIONS = [
   { value: "NEW", label: "New" },
+  { value: "OPEN_BOX", label: "Open Box — product brand new" },
   { value: "LIKE_NEW", label: "Like New" },
   { value: "GOOD", label: "Good" },
   { value: "FAIR", label: "Fair" },

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/auth/dal";
+import { requireCatalogAccess } from "@/lib/auth/dal";
 import { parseCatalogFile, type ImportRow } from "@/lib/catalog-import";
 import { categorizeProducts, isAiCategorizeConfigured } from "@/lib/ai-categorize";
 import { type CategoryNode } from "@/lib/listings";
@@ -51,7 +51,7 @@ export async function importCatalogAction(
   _prevState: ImportState,
   formData: FormData
 ): Promise<ImportState> {
-  await requireAdmin();
+  const session = await requireCatalogAccess();
 
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) {
@@ -64,7 +64,9 @@ export async function importCatalogAction(
     return { error: "ANTHROPIC_API_KEY isn't set, so products can't be categorised." };
   }
 
-  const publish = formData.get("publish") === "on";
+  // Staff imports always land as drafts for an admin to review, whatever the
+  // checkbox said.
+  const publish = formData.get("publish") === "on" && session.user.role !== "STAFF";
 
   const { rows, error } = await parseCatalogFile(
     Buffer.from(await file.arrayBuffer()),

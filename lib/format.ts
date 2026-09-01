@@ -9,6 +9,7 @@ export function formatCents(cents: number): string {
 
 const CONDITION_LABELS: Record<string, string> = {
   NEW: "New",
+  OPEN_BOX: "Open Box — product brand new",
   LIKE_NEW: "Like New",
   GOOD: "Good",
   FAIR: "Fair",

@@ -7,7 +7,7 @@ export const PAGE_SIZE = 12;
 export const SORT_OPTIONS = ["newest", "price-asc", "price-desc", "deal-score-desc"] as const;
 export type ListingSort = (typeof SORT_OPTIONS)[number];
 
-const CONDITIONS: ListingCondition[] = ["NEW", "LIKE_NEW", "GOOD", "FAIR", "SALVAGE"];
+const CONDITIONS: ListingCondition[] = ["NEW", "OPEN_BOX", "LIKE_NEW", "GOOD", "FAIR", "SALVAGE"];
 
 export interface ListingSearchParams {
   q?: string;
@@ -187,9 +187,14 @@ export async function getListings(params: ListingSearchParams) {
   };
 }
 
-export async function getListingBySlug(slug: string) {
+/**
+ * @param includeUnpublished lets an admin or staff member open a draft at its
+ * real URL to check it before it goes live. Shoppers never get this — the
+ * caller decides, and the default stays PUBLISHED-only.
+ */
+export async function getListingBySlug(slug: string, includeUnpublished = false) {
   return prisma.listing.findFirst({
-    where: { slug, status: "PUBLISHED" },
+    where: includeUnpublished ? { slug } : { slug, status: "PUBLISHED" },
     include: {
       category: true,
       photos: { orderBy: { sortOrder: "asc" } },

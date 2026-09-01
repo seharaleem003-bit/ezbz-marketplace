@@ -1,6 +1,6 @@
 "use server";
 
-import { requireAdmin } from "@/lib/auth/dal";
+import { requireCatalogAccess } from "@/lib/auth/dal";
 import { putFile } from "@/lib/storage";
 
 export type UploadPhotosState = { urls?: string[]; error?: string };
@@ -20,7 +20,7 @@ const MAX_FILE_BYTES = 8 * 1024 * 1024;
  * message rather than accepting a file that won't survive.
  */
 export async function uploadListingPhotosAction(formData: FormData): Promise<UploadPhotosState> {
-  await requireAdmin();
+  await requireCatalogAccess();
 
   const files = formData.getAll("photos").filter((f): f is File => f instanceof File && f.size > 0);
   if (files.length === 0) {

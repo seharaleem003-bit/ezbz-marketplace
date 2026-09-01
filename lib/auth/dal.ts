@@ -29,3 +29,21 @@ export const requireAdmin = cache(async () => {
   }
   return session;
 });
+
+/**
+ * Admin *or* catalogue staff.
+ *
+ * Staff can build the catalogue and preview their drafts but nothing else —
+ * no orders, customers, payouts, or user management. Every page they can't
+ * reach still calls requireAdmin, so adding a new admin page defaults to
+ * closed rather than accidentally exposing it.
+ */
+export const requireCatalogAccess = cache(async () => {
+  const session = await verifySession();
+  if (session.user.role !== "ADMIN" && session.user.role !== "STAFF") {
+    redirect("/");
+  }
+  return session;
+});
+
+export const isStaffOnly = (role: string | undefined) => role === "STAFF";

@@ -88,7 +88,7 @@ const EBAY_CONDITION_MAP: Record<string, string> = {
   New: "NEW",
   "New with tags": "NEW",
   "New without tags": "NEW",
-  "Open box": "LIKE_NEW",
+  "Open box": "OPEN_BOX",
   "Certified - Refurbished": "LIKE_NEW",
   "Excellent - Refurbished": "LIKE_NEW",
   "Very Good - Refurbished": "GOOD",

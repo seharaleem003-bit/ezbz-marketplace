@@ -10,6 +10,9 @@ datasource db {
 
 enum Role {
   BUYER
+  // Catalogue-only staff: can create and edit listings and preview them as
+  // drafts, but cannot publish, see orders, customers, payouts or other staff.
+  STAFF
   ADMIN
 }
 
@@ -320,6 +323,9 @@ model MessageAttachment {
 
 enum ListingCondition {
   NEW
+  // Sealed product, box opened — the item itself is unused. Sits directly
+  // below NEW because that's how a shopper ranks it.
+  OPEN_BOX
   LIKE_NEW
   GOOD
   FAIR
