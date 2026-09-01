@@ -6,7 +6,7 @@ import { z } from "zod";
 
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth/dal";
-import { sendPasswordResetEmail } from "@/lib/email";
+import { sendStaffInviteEmail } from "@/lib/email";
 
 export type UserActionState = { error?: string; success?: string } | undefined;
 
@@ -67,7 +67,7 @@ export async function inviteStaffAction(
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   try {
-    await sendPasswordResetEmail(email, `${appUrl}/reset-password?token=${rawToken}`);
+    await sendStaffInviteEmail(email, `${appUrl}/reset-password?token=${rawToken}`);
   } catch (error) {
     console.error("Staff invite email failed", error);
     return {

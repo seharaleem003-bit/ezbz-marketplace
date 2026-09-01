@@ -234,6 +234,44 @@ export async function sendNewMessageEmail({
   });
 }
 
+/**
+ * Invite for a new catalogue staff member.
+ *
+ * Separate from the password-reset email because the reset copy — "we
+ * received a request to reset your password" — is baffling to someone who has
+ * never had an account, and reads like phishing.
+ */
+export async function sendStaffInviteEmail(recipientEmail: string, setPasswordUrl: string) {
+  const html = layout(
+    "You've been added to EZBZ",
+    `
+      <p style="font-size: 14px;">
+        You've been given access to add and edit product listings on EZBZ.
+      </p>
+      <p style="font-size: 14px;">
+        Set a password to get started — you'll sign in with this email address.
+        This link expires in 48 hours.
+      </p>
+      <a href="${setPasswordUrl}" style="display: inline-block; margin-top: 16px; padding: 10px 16px; background: #0f172a; color: #fff; text-decoration: none; border-radius: 8px; font-size: 14px;">Set your password</a>
+      <p style="font-size: 13px; color: #64748b; margin-top: 20px;">
+        Once you're in you can create listings, upload photos and preview them.
+        An admin reviews and publishes them.
+      </p>
+      <p style="font-size: 13px; color: #64748b; margin-top: 12px;">
+        Not expecting this? You can ignore this email — the account isn't usable
+        until a password is set.
+      </p>
+    `
+  );
+
+  await sendSafely({
+    from: fromAddress(),
+    to: recipientEmail,
+    subject: "You've been added to EZBZ",
+    html,
+  });
+}
+
 export async function sendPasswordResetEmail(recipientEmail: string, resetUrl: string) {
   const html = layout(
     "Reset your password",

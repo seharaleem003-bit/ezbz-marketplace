@@ -3,6 +3,7 @@ import { cache } from "react";
 import { redirect } from "next/navigation";
 
 import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 
 // Secure check: every Server Action / data request that needs an
 // authenticated user should call this (not just rely on proxy.ts, which is
@@ -22,9 +23,26 @@ export const getOptionalSession = cache(async () => {
   return auth();
 });
 
+/**
+ * The role as it is *right now*, read from the database.
+ *
+ * The session is a JWT, so `session.user.role` is a snapshot taken when the
+ * user signed in and does not change when their access is revoked — without
+ * this, removing someone's access would leave them working normally until
+ * their token happened to expire. Every privileged gate below checks this
+ * instead. One indexed lookup, on admin routes only.
+ */
+const currentRole = cache(async (userId: string) => {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true },
+  });
+  return user?.role ?? null;
+});
+
 export const requireAdmin = cache(async () => {
   const session = await verifySession();
-  if (session.user.role !== "ADMIN") {
+  if ((await currentRole(session.user.id)) !== "ADMIN") {
     redirect("/");
   }
   return session;
@@ -40,10 +58,13 @@ export const requireAdmin = cache(async () => {
  */
 export const requireCatalogAccess = cache(async () => {
   const session = await verifySession();
-  if (session.user.role !== "ADMIN" && session.user.role !== "STAFF") {
+  const role = await currentRole(session.user.id);
+  if (role !== "ADMIN" && role !== "STAFF") {
     redirect("/");
   }
-  return session;
+  // Hand back the live role, so callers gating on STAFF (e.g. the publish
+  // restriction) never act on the stale one in the token.
+  return { ...session, user: { ...session.user, role } };
 });
 
 export const isStaffOnly = (role: string | undefined) => role === "STAFF";

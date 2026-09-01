@@ -44,7 +44,17 @@ export async function loginAction(
   }
 
   const callbackUrl = formData.get("callbackUrl");
-  redirect(typeof callbackUrl === "string" && callbackUrl ? callbackUrl : "/");
+  if (typeof callbackUrl === "string" && callbackUrl) {
+    redirect(callbackUrl);
+  }
+
+  // Staff and admins work in the admin panel, so send them there instead of
+  // the storefront — otherwise a new staff member signs in, lands on the shop,
+  // and has no idea the panel exists.
+  if (signedInUser?.role === "STAFF") redirect("/admin/listings");
+  if (signedInUser?.role === "ADMIN") redirect("/admin");
+
+  redirect("/");
 }
 
 export type SignupActionState =
