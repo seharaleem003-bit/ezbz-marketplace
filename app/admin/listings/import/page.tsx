@@ -14,9 +14,17 @@ export default function ImportListingsPage() {
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 className="font-heading text-2xl font-semibold">Import listings</h1>
-        <Link href="/admin/listings" className="text-sm text-navy-800 hover:underline">
-          Back to listings
-        </Link>
+        <div className="flex items-center gap-4 text-sm">
+          <a
+            href="/admin/listings/import/template"
+            className="font-medium text-navy-800 hover:underline"
+          >
+            Download blank template
+          </a>
+          <Link href="/admin/listings" className="text-navy-800 hover:underline">
+            Back to listings
+          </Link>
+        </div>
       </div>
 
       <p className="mb-6 max-w-2xl text-sm text-muted-foreground">
