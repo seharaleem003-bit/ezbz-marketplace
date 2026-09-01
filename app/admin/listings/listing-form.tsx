@@ -1,5 +1,7 @@
 "use client";
 
+import { Eye } from "lucide-react";
+
 import { useActionState, useRef, useState } from "react";
 
 import type { ListingFormState } from "./actions";
@@ -501,6 +503,21 @@ export function ListingForm({
             {pending ? "Saving…" : "Save & add another"}
           </Button>
         ) : null}
+
+        {/* Saves first, then opens the real product page. Previewing unsaved
+            edits isn't possible — the page reads the listing from the database
+            — so this is honest about saving rather than pretending otherwise. */}
+        <Button
+          type="submit"
+          name="intent"
+          value="preview"
+          variant="outline"
+          disabled={pending}
+          className="w-fit"
+        >
+          <Eye />
+          {pending ? "Saving…" : "Save & preview"}
+        </Button>
       </div>
     </form>
   );

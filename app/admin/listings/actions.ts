@@ -189,7 +189,17 @@ async function upsertListing(
   revalidatePath("/");
   revalidatePath("/fundraisers", "layout");
 
-  redirect(formData.get("intent") === "another" ? "/admin/listings/new" : "/admin/listings");
+  const intent = formData.get("intent");
+  redirect(
+    intent === "another"
+      ? "/admin/listings/new"
+      : // "Save & preview" lands on the live product page. A draft is only
+        // visible there to admin/staff, so this shows exactly what a shopper
+        // would see without exposing it to one.
+        intent === "preview"
+        ? `/listings/${listing.slug}`
+        : "/admin/listings"
+  );
 }
 
 export async function createListingAction(

@@ -93,6 +93,16 @@ export default async function AdminListingsPage() {
                 <TableCell>{listing.dealScore}</TableCell>
                 <TableCell>{listing.inventoryQty}</TableCell>
                 <TableCell>
+                  {/* Opens in a new tab so the admin doesn't lose their place
+                      in the list. Drafts are visible here to admin/staff only. */}
+                  <Link
+                    href={`/listings/${listing.slug}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mr-3 text-sm text-navy-800 hover:underline"
+                  >
+                    Preview
+                  </Link>
                   <ListingStatusActions listingId={listing.id} status={listing.status} />
                 </TableCell>
               </TableRow>

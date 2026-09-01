@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
@@ -62,7 +63,26 @@ export default async function EditListingPage({
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-heading font-semibold">Edit listing</h1>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-heading font-semibold">Edit listing</h1>
+        <div className="flex items-center gap-3 text-sm">
+          {listing.status !== "PUBLISHED" ? (
+            <span className="rounded-full bg-gold-500 px-2 py-0.5 text-xs font-bold uppercase text-navy-900">
+              {listing.status.toLowerCase()}
+            </span>
+          ) : null}
+          {/* Previews what's already saved; "Save & preview" below picks up
+              unsaved edits first. */}
+          <Link
+            href={`/listings/${listing.slug}`}
+            target="_blank"
+            rel="noreferrer"
+            className="text-navy-800 hover:underline"
+          >
+            Preview current version
+          </Link>
+        </div>
+      </div>
       <ListingForm
         showPrebook
         action={updateListingAction.bind(null, listing.id)}
