@@ -19,11 +19,15 @@ export interface CategorySuggestion {
   /** A category to create, when nothing fits. */
   newCategory?: { name: string; parentSlug: string | null };
   confidence: "high" | "medium" | "low";
+  /** Search-engine copy, written in the same pass as the categorisation. */
+  metaTitle?: string;
+  metaDescription?: string;
+  searchKeywords?: string;
 }
 
 const TOOL = {
   name: "emit_categories",
-  description: "Assign every supplied product to a category.",
+  description: "Assign every supplied product to a category and write its search-engine copy.",
   input_schema: {
     type: "object" as const,
     properties: {
@@ -49,8 +53,23 @@ const TOOL = {
                 "Slug of the existing category the new one should sit under. Use the top-level department it belongs in. Omit only if it must be a new top-level department.",
             },
             confidence: { type: "string", enum: ["high", "medium", "low"] },
+            metaTitle: {
+              type: "string",
+              description:
+                "SEO page title, at most 60 characters so Google doesn't truncate it. Lead with the term a shopper actually types — the product type and its key attribute — not the brand unless the brand is what's searched. No site name; that's appended automatically.",
+            },
+            metaDescription: {
+              type: "string",
+              description:
+                "Meta description, 140-155 characters. Written to earn the click: what it is, who it suits, and a concrete reason to buy. No invented claims, no keyword stuffing — Google rewrites descriptions it judges spammy.",
+            },
+            searchKeywords: {
+              type: "string",
+              description:
+                "8-12 comma-separated search terms a shopper would realistically type, ordered most to least likely. Include the generic product type, common synonyms, key attributes (size, material, colour, pack count), and buying-intent phrasing. Skip anything the product isn't.",
+            },
           },
-          required: ["rowNumber", "confidence"],
+          required: ["rowNumber", "confidence", "metaTitle", "metaDescription", "searchKeywords"],
         },
       },
     },
@@ -110,6 +129,9 @@ export async function categorizeProducts({
             "3. Don't create a category for a single product when a slightly broader one",
             "   would hold several. Group related products under one new category.",
             "4. Every product must get either existingSlug or newCategoryName.",
+            "5. Write the SEO fields for every product too. This is a discount",
+            "   marketplace, so shoppers arrive comparing prices — lead with what",
+            "   the thing is, not with adjectives.",
             "",
             "Products:",
             ...batch.map(
@@ -137,6 +159,9 @@ export async function categorizeProducts({
       const parentSlug =
         typeof a.newCategoryParentSlug === "string" ? a.newCategoryParentSlug : undefined;
 
+      const str = (v: unknown, max: number) =>
+        typeof v === "string" && v.trim() ? v.trim().slice(0, max) : undefined;
+
       out.push({
         rowNumber,
         existingSlug: existingSlug || undefined,
@@ -145,6 +170,11 @@ export async function categorizeProducts({
           a.confidence === "high" || a.confidence === "low"
             ? (a.confidence as "high" | "low")
             : "medium",
+        // Trimmed to the lengths search engines render, in case the model
+        // overshoots the instruction.
+        metaTitle: str(a.metaTitle, 60),
+        metaDescription: str(a.metaDescription, 155),
+        searchKeywords: str(a.searchKeywords, 500),
       });
     }
   }

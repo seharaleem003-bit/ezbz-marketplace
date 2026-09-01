@@ -189,6 +189,11 @@ export async function importCatalogAction(
         // Only meaningful once a comparison price exists; without one the
         // badge and Deal Score have nothing to measure against.
         amazonPriceCheckedAt: row.amazonPriceCents ? new Date() : null,
+        // Written by the same pass that categorised the product, so an
+        // imported listing arrives search-ready instead of with empty tags.
+        metaTitle: suggestion?.metaTitle ?? null,
+        metaDescription: suggestion?.metaDescription ?? null,
+        searchKeywords: suggestion?.searchKeywords ?? null,
         dealScore: computeDealScore({
           priceCents,
           retailPriceCents: row.retailPriceCents,

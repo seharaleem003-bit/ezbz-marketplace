@@ -12,6 +12,7 @@ import { prisma } from "@/lib/prisma";
 import { DiscountBadge, calculateDiscount } from "@/components/discount-badge";
 import { ListingGallery } from "./listing-gallery";
 import { RecommendationRow } from "@/components/recommendation-row";
+import { ProductSchema } from "@/components/product-schema";
 import { getSimilarListings, getBoughtTogether } from "@/lib/recommendations";
 import { isDurableStorageConfigured } from "@/lib/storage";
 import { CornerRibbon, ribbonFor } from "@/components/corner-ribbon";
@@ -127,6 +128,26 @@ export default async function ListingDetailPage({
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-10">
+      {/* Structured data only for pages shoppers can reach — a draft indexed
+          by Google would be a dead link. */}
+      {listing.status === "PUBLISHED" ? (
+        <ProductSchema
+          product={{
+            name: listing.title,
+            description: listing.metaDescription ?? listing.description,
+            url: listingUrl,
+            images: listing.photos.map((photo) => photo.url),
+            priceCents: listing.priceCents,
+            condition: listing.condition,
+            // A pre-book is orderable even at zero stock, and telling Google
+            // otherwise would suppress it from Shopping results.
+            inStock: inStock || listing.isPrebook,
+            categoryPath: [listing.category.name],
+            sku: listing.slug,
+          }}
+        />
+      ) : null}
+
       {/* Only reachable by admin/staff — a shopper hitting an unpublished slug
           gets a 404, so this can't leak. */}
       {listing.status !== "PUBLISHED" ? (
