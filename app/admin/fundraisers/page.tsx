@@ -10,6 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { FundraiserStatusActions } from "./status-actions";
+import { requireAdmin } from "@/lib/auth/dal";
 
 export const metadata: Metadata = {
   title: "Fundraisers",
@@ -18,6 +19,8 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function AdminFundraisersPage() {
+  await requireAdmin();
+
   const fundraisers = await prisma.fundraiser.findMany({
     orderBy: { createdAt: "desc" },
     include: { organizer: { select: { name: true, email: true } }, listings: true },

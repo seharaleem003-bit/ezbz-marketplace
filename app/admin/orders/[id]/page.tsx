@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { formatCents } from "@/lib/format";
 import { OrderShippingPanel } from "@/components/order-shipping-panel";
 import { createShipmentAction, buyLabelAction, refreshTrackingAction } from "./actions";
+import { requireAdmin } from "@/lib/auth/dal";
 
 export const metadata: Metadata = {
   title: "Order details",
@@ -17,6 +18,8 @@ export default async function AdminOrderDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await requireAdmin();
+
   const { id } = await params;
 
   const order = await prisma.order.findUnique({

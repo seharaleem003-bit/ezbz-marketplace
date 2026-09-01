@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { ServiceCategoryForm } from "./category-form";
 import { createServiceCategoryAction } from "./actions";
 import { DeleteServiceCategoryButton } from "./delete-button";
+import { requireAdmin } from "@/lib/auth/dal";
 
 export const metadata: Metadata = {
   title: "Service categories",
@@ -22,6 +23,8 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function AdminServiceCategoriesPage() {
+  await requireAdmin();
+
   const categories = await prisma.serviceCategory.findMany({
     orderBy: [{ group: "asc" }, { sortOrder: "asc" }, { name: "asc" }],
     include: { _count: { select: { providers: true } } },

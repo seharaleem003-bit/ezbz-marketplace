@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { getDashboardData } from "@/lib/analytics";
 import { formatCents } from "@/lib/format";
 import { RevenueChart } from "./revenue-chart";
+import { requireAdmin } from "@/lib/auth/dal";
 
 export const metadata: Metadata = {
   title: "Admin dashboard",
@@ -56,6 +57,8 @@ function StatCard({
 }
 
 export default async function AdminDashboardPage() {
+  await requireAdmin();
+
   const [data, publishedCount, draftCount, recentOrders] = await Promise.all([
     getDashboardData(),
     prisma.listing.count({ where: { status: "PUBLISHED" } }),

@@ -5,6 +5,7 @@ import { ListingForm } from "../listing-form";
 import { AiDrafter } from "../ai-drafter";
 import { EMPTY_LISTING_FORM_DEFAULTS } from "../listing-form-defaults";
 import { createListingAction } from "../actions";
+import { requireCatalogAccess } from "@/lib/auth/dal";
 
 export const metadata: Metadata = {
   title: "New listing",
@@ -13,6 +14,8 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function NewListingPage() {
+  await requireCatalogAccess();
+
   const [categories, fundraisers] = await Promise.all([
     prisma.category.findMany({ orderBy: { name: "asc" } }),
     prisma.fundraiser.findMany({ where: { status: "APPROVED" }, orderBy: { name: "asc" } }),

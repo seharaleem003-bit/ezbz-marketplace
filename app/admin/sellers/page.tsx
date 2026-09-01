@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/table";
 import { SellerTrustBadges } from "@/components/seller-trust-badges";
 import { SellerStatusActions } from "./status-actions";
+import { requireAdmin } from "@/lib/auth/dal";
 
 export const metadata: Metadata = {
   title: "Sellers",
@@ -20,6 +21,8 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function AdminSellersPage() {
+  await requireAdmin();
+
   const sellers = await prisma.seller.findMany({
     orderBy: { createdAt: "desc" },
     include: { user: { select: { name: true, email: true } }, listings: true },

@@ -12,6 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { RefundForm } from "./refund-form";
+import { requireAdmin } from "@/lib/auth/dal";
 
 export const metadata: Metadata = {
   title: "Orders",
@@ -20,6 +21,8 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function AdminOrdersPage() {
+  await requireAdmin();
+
   const orders = await prisma.order.findMany({
     orderBy: { createdAt: "desc" },
     include: { items: true, user: { select: { email: true, name: true } } },

@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { ListingForm } from "../../listing-form";
 import type { ListingFormDefaults } from "../../listing-form-defaults";
 import { updateListingAction } from "../../actions";
+import { requireCatalogAccess } from "@/lib/auth/dal";
 
 export const metadata: Metadata = {
   title: "Edit listing",
@@ -18,6 +19,8 @@ export default async function EditListingPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await requireCatalogAccess();
+
   const { id } = await params;
 
   const [listing, categories, fundraisers] = await Promise.all([

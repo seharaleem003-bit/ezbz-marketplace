@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { TicketRow } from "./ticket-row";
+import { requireAdmin } from "@/lib/auth/dal";
 
 export const metadata: Metadata = {
   title: "Support tickets",
@@ -11,6 +12,8 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function AdminSupportPage() {
+  await requireAdmin();
+
   const tickets = await prisma.supportTicket.findMany({
     orderBy: [{ status: "asc" }, { createdAt: "desc" }],
   });

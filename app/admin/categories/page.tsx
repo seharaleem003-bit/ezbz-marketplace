@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { CategoryForm } from "./category-form";
 import { createCategoryAction } from "./actions";
 import { DeleteCategoryButton } from "./delete-category-button";
+import { requireAdmin } from "@/lib/auth/dal";
 
 export const metadata: Metadata = {
   title: "Categories",
@@ -22,6 +23,8 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function AdminCategoriesPage() {
+  await requireAdmin();
+
   const categories = await prisma.category.findMany({
     orderBy: { name: "asc" },
     include: { _count: { select: { listings: true } } },

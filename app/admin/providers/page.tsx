@@ -10,6 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ProviderStatusActions } from "./status-actions";
+import { requireAdmin } from "@/lib/auth/dal";
 
 export const metadata: Metadata = {
   title: "Service providers",
@@ -26,6 +27,8 @@ const BACKGROUND_CHECK_LABELS: Record<string, string> = {
 };
 
 export default async function AdminProvidersPage() {
+  await requireAdmin();
+
   const providers = await prisma.serviceProvider.findMany({
     orderBy: { createdAt: "desc" },
     include: {

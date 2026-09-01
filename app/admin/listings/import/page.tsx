@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { ImportForm } from "./import-form";
+import { requireCatalogAccess } from "@/lib/auth/dal";
 
 export const metadata: Metadata = {
   title: "Import listings",
@@ -9,7 +10,9 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-export default function ImportListingsPage() {
+export default async function ImportListingsPage() {
+  await requireCatalogAccess();
+
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">

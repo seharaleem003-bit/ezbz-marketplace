@@ -14,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ListingStatusActions } from "./status-actions";
+import { requireCatalogAccess } from "@/lib/auth/dal";
 
 export const metadata: Metadata = {
   title: "Manage listings",
@@ -28,6 +29,8 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export default async function AdminListingsPage() {
+  await requireCatalogAccess();
+
   const listings = await prisma.listing.findMany({
     orderBy: { updatedAt: "desc" },
     include: {

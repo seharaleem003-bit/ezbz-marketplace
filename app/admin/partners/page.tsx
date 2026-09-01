@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/table";
 import { PartnerForm } from "./partner-form";
 import { PartnerStatusButtons, PartnerContactLink } from "./partner-actions";
+import { requireAdmin } from "@/lib/auth/dal";
 
 export const metadata: Metadata = {
   title: "Nonprofit partners",
@@ -19,6 +20,8 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function AdminPartnersPage() {
+  await requireAdmin();
+
   const partners = await prisma.nonprofitPartner.findMany({
     orderBy: { createdAt: "desc" },
     include: {

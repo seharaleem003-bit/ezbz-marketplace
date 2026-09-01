@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { CategoryForm } from "../../category-form";
 import { updateCategoryAction } from "../../actions";
+import { requireAdmin } from "@/lib/auth/dal";
 
 export const metadata: Metadata = {
   title: "Edit category",
@@ -16,6 +17,8 @@ export default async function EditCategoryPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await requireAdmin();
+
   const { id } = await params;
   const category = await prisma.category.findUnique({ where: { id } });
   if (!category) notFound();

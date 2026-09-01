@@ -7,6 +7,7 @@ import { computeSellerBadgeStats, BADGE_WINDOW_DAYS } from "@/lib/seller-badges"
 import { SellerTrustBadges } from "@/components/seller-trust-badges";
 import { FlagForm } from "./flag-form";
 import { RecalculateButton, RemoveFlagButton } from "./seller-actions";
+import { requireAdmin } from "@/lib/auth/dal";
 
 export const metadata: Metadata = {
   title: "Seller detail",
@@ -19,6 +20,8 @@ export default async function AdminSellerDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await requireAdmin();
+
   const { id } = await params;
 
   const seller = await prisma.seller.findUnique({

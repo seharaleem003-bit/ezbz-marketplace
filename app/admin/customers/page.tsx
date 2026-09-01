@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { getCustomers } from "@/lib/analytics";
 import { formatCents } from "@/lib/format";
+import { requireAdmin } from "@/lib/auth/dal";
 
 export const metadata: Metadata = {
   title: "Customers",
@@ -16,6 +17,8 @@ const dateFmt = new Intl.DateTimeFormat("en-US", {
 });
 
 export default async function AdminCustomersPage() {
+  await requireAdmin();
+
   const customers = await getCustomers();
 
   const buyers = customers.filter((c) => c.orderCount > 0);

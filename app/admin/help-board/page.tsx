@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { NeedForm } from "./need-form";
 import { NeedRow } from "./need-row";
+import { requireAdmin } from "@/lib/auth/dal";
 
 export const metadata: Metadata = {
   title: "Help Board",
@@ -12,6 +13,8 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function AdminHelpBoardPage() {
+  await requireAdmin();
+
   const [needs, partners] = await Promise.all([
     prisma.helpBoardNeed.findMany({
       orderBy: [{ status: "asc" }, { createdAt: "desc" }],
