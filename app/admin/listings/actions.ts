@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { prisma } from "@/lib/prisma";
-import { requireCatalogAccess } from "@/lib/auth/dal";
+import { requireCatalogAccess, requireAdmin } from "@/lib/auth/dal";
 import { computeDealScore } from "@/lib/deal-score";
 import { listingFormSchema, parsePhotoUrls } from "@/lib/validation/listing";
 import { notifyPrebookWaitlist } from "@/lib/prebook-notify";
@@ -239,4 +239,49 @@ export async function setListingStatusAction(
   revalidatePath("/listings");
   revalidatePath(`/listings/${listing.slug}`);
   revalidatePath("/");
+}
+
+/**
+ * Permanently removes a listing.
+ *
+ * Admin-only: staff build the catalogue, they don't destroy it. A listing that
+ * appears on any order is refused rather than deleted — the order records the
+ * sale and deleting the listing would take that history with it. Archiving
+ * hides it from shoppers and keeps the record, which is what's wanted in
+ * practice.
+ */
+export async function deleteListingAction(
+  listingId: string
+): Promise<{ error?: string; deleted?: boolean }> {
+  await requireAdmin();
+
+  const listing = await prisma.listing.findUnique({
+    where: { id: listingId },
+    select: {
+      title: true,
+      slug: true,
+      _count: { select: { orderItems: true } },
+    },
+  });
+  if (!listing) return { error: "That listing no longer exists." };
+
+  if (listing._count.orderItems > 0) {
+    return {
+      error: `"${listing.title}" appears on ${listing._count.orderItems} order${
+        listing._count.orderItems === 1 ? "" : "s"
+      }, so deleting it would break that order history. Archive it instead — it disappears from the shop either way.`,
+    };
+  }
+
+  // Carts and wishlists block the delete and would point at nothing anyway.
+  await prisma.cartItem.deleteMany({ where: { listingId } });
+  await prisma.watch.deleteMany({ where: { listingId } });
+  await prisma.listing.delete({ where: { id: listingId } });
+
+  revalidatePath("/admin/listings");
+  revalidatePath("/listings");
+  revalidatePath(`/listings/${listing.slug}`);
+  revalidatePath("/");
+
+  return { deleted: true };
 }

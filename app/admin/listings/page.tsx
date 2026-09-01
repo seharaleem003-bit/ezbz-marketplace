@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/table";
 import { ListingStatusActions } from "./status-actions";
 import { requireCatalogAccess } from "@/lib/auth/dal";
+import { DeleteListingButton } from "./delete-button";
 
 export const metadata: Metadata = {
   title: "Manage listings",
@@ -29,7 +30,8 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export default async function AdminListingsPage() {
-  await requireCatalogAccess();
+  const session = await requireCatalogAccess();
+  const isAdmin = session.user.role === "ADMIN";
 
   const listings = await prisma.listing.findMany({
     orderBy: { updatedAt: "desc" },
@@ -98,15 +100,22 @@ export default async function AdminListingsPage() {
                 <TableCell>
                   {/* Opens in a new tab so the admin doesn't lose their place
                       in the list. Drafts are visible here to admin/staff only. */}
-                  <Link
-                    href={`/listings/${listing.slug}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mr-3 text-sm text-navy-800 hover:underline"
-                  >
-                    Preview
-                  </Link>
-                  <ListingStatusActions listingId={listing.id} status={listing.status} />
+                  {/* One flex row, so the trash icon sits beside the status
+                      buttons instead of wrapping onto its own line. */}
+                  <div className="flex items-center justify-end gap-1.5">
+                    <Link
+                      href={`/listings/${listing.slug}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mr-1 text-sm text-navy-800 hover:underline"
+                    >
+                      Preview
+                    </Link>
+                    <ListingStatusActions listingId={listing.id} status={listing.status} />
+                    {isAdmin ? (
+                      <DeleteListingButton listingId={listing.id} title={listing.title} />
+                    ) : null}
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
