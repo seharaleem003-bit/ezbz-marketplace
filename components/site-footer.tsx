@@ -24,6 +24,7 @@ export async function SiteFooter() {
         { label: dict.footer.bestDealScores, href: "/listings?sort=deal-score-desc" },
         { label: dict.footer.wishlist, href: "/wishlist" },
         { label: dict.footer.cart, href: "/cart" },
+        { label: dict.footer.installApp, href: "/install" },
       ],
     },
     {
