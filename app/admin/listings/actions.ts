@@ -8,6 +8,7 @@ import { requireCatalogAccess, requireAdmin } from "@/lib/auth/dal";
 import { computeDealScore } from "@/lib/deal-score";
 import { listingFormSchema, parsePhotoUrls } from "@/lib/validation/listing";
 import { notifyPrebookWaitlist } from "@/lib/prebook-notify";
+import { generateSeoCopy, isAiSeoConfigured } from "@/lib/ai-seo";
 
 export type ListingFormState =
   | { error?: string; fieldErrors?: Record<string, string[] | undefined> }
@@ -99,6 +100,34 @@ async function upsertListing(
     condition: data.condition,
   });
 
+  // SEO is generated when it wasn't supplied, so a listing added by hand can't
+  // ship with empty tags. Anything typed into the form wins — this fills gaps,
+  // it doesn't overwrite an operator's wording. Best-effort: a model failure
+  // must not block saving the listing.
+  let seo = {
+    metaTitle: data.metaTitle ?? null,
+    metaDescription: data.metaDescription ?? null,
+    searchKeywords: data.searchKeywords ?? null,
+  };
+  if ((!seo.metaTitle || !seo.metaDescription || !seo.searchKeywords) && isAiSeoConfigured()) {
+    try {
+      const generated = await generateSeoCopy({
+        title: data.title,
+        description: data.description,
+        categoryName: category.name,
+        condition: data.condition,
+        priceCents,
+      });
+      seo = {
+        metaTitle: seo.metaTitle ?? generated.metaTitle,
+        metaDescription: seo.metaDescription ?? generated.metaDescription,
+        searchKeywords: seo.searchKeywords ?? generated.searchKeywords,
+      };
+    } catch (error) {
+      console.error("SEO generation failed; saving listing without it", error);
+    }
+  }
+
   const listingData = {
     title: data.title,
     slug: data.slug,
@@ -111,9 +140,9 @@ async function upsertListing(
     amazonPriceCents,
     amazonUrl: data.amazonUrl ?? null,
     amazonPriceCheckedAt: amazonPriceCents ? new Date() : null,
-    metaTitle: data.metaTitle ?? null,
-    metaDescription: data.metaDescription ?? null,
-    searchKeywords: data.searchKeywords ?? null,
+    metaTitle: seo.metaTitle,
+    metaDescription: seo.metaDescription,
+    searchKeywords: seo.searchKeywords,
     // Stored metric because that's what Easyship's API takes; the form
     // collects lb/in because that's what a US warehouse tape measure reads.
     weightGrams: data.weightLb !== undefined ? Math.round(data.weightLb * 453.59237) : null,
