@@ -38,8 +38,17 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const listing = await getListingBySlug(slug);
-  if (!listing) return {};
+
+  // Deliberately resolved here rather than only in the page body. This route
+  // has a loading.tsx, so Next streams a shell and commits HTTP 200 before the
+  // component runs — calling notFound() down there produced a "soft 404": the
+  // right page with a 200 status, which Google treats as a thin duplicate and
+  // will happily index. generateMetadata runs before the response starts, so
+  // the status is still ours to set.
+  const session = await getOptionalSession();
+  const canSeeDrafts = session?.user?.role === "ADMIN" || session?.user?.role === "STAFF";
+  const listing = await getListingBySlug(slug, canSeeDrafts);
+  if (!listing) notFound();
 
   // Purpose-written SEO copy wins when it exists; otherwise fall back to the
   // listing's own title and description.
