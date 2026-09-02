@@ -2,6 +2,8 @@ import "server-only";
 
 import ExcelJS from "exceljs";
 
+import { extractEmbeddedImages, type EmbeddedImage } from "@/lib/xlsx-embedded-images";
+
 /**
  * Reads a supplier spreadsheet into rows the importer can work with.
  *
@@ -19,6 +21,12 @@ export interface ImportRow {
   condition: string | null;
   colour: string | null;
   imageUrls: string[];
+  /**
+   * Pictures pasted directly into the sheet's cells. Used when a row has no
+   * usable image URL — a supplier who pastes photos into Google Sheets gets
+   * them imported rather than a listing with an empty frame.
+   */
+  embeddedImages: EmbeddedImage[];
   /** Drives the "% off vs Amazon" badge and Deal Score. */
   amazonPriceCents: number | null;
   amazonUrl: string | null;
@@ -34,16 +42,20 @@ export interface ImportRow {
   problem?: string;
 }
 
+// Fields that come from a header cell. Everything else on ImportRow is derived.
 type MappedField = Exclude<
   keyof ImportRow,
-  "rowNumber" | "imageUrls" | "problem"
+  "rowNumber" | "imageUrls" | "embeddedImages" | "problem"
 >;
 
 // Order matters: more specific aliases are checked before looser ones, so an
 // "Amazon Price" column isn't swallowed by the plain "price" matcher.
 const HEADER_ALIASES: Record<MappedField, string[]> = {
-  amazonPriceCents: ["amazon price", "amazon", "price on amazon", "competitor price"],
-  amazonUrl: ["amazon link", "amazon url", "competitor link"],
+  // Link columns are matched before price columns on purpose. A bare "amazon"
+  // alias on the price field once swallowed an "Amazon link" column, and the
+  // digits in each URL were parsed as a nine-cent competitor price.
+  amazonUrl: ["amazon link", "amazon url", "amazon page", "competitor link", "asin link"],
+  amazonPriceCents: ["amazon price", "price on amazon", "amazon cost", "competitor price"],
   retailPriceCents: ["retail price", "rrp", "msrp", "list price", "was price"],
   title: ["title", "product title", "products title", "name", "product name", "item"],
   description: ["description", "product description", "products description", "details"],
@@ -136,6 +148,17 @@ export async function parseCatalogFile(
   const sheet = workbook.worksheets[0];
   if (!sheet) return { rows: [], headers: [], error: "That file has no sheets." };
 
+  // Only .xlsx can carry in-cell pictures; a failure here costs the pictures,
+  // not the import.
+  let embedded = new Map<number, EmbeddedImage[]>();
+  if (!/\.csv$/i.test(filename)) {
+    try {
+      embedded = await extractEmbeddedImages(buffer);
+    } catch (error) {
+      console.warn("Embedded image extraction failed; continuing without them", error);
+    }
+  }
+
   const headerRow = sheet.getRow(1);
   const headers: string[] = [];
   headerRow.eachCell({ includeEmpty: true }, (cell, col) => {
@@ -218,6 +241,7 @@ export async function parseCatalogFile(
       condition: parseCondition(get("condition") || null),
       colour: get("colour") || null,
       imageUrls: images,
+      embeddedImages: embedded.get(rowNumber) ?? [],
       amazonPriceCents: cents("amazonPriceCents"),
       amazonUrl: usableImageUrl(get("amazonUrl")) ?? (get("amazonUrl") || null),
       retailPriceCents: cents("retailPriceCents"),

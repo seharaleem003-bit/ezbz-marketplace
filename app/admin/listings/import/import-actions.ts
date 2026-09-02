@@ -8,6 +8,7 @@ import { parseCatalogFile, type ImportRow } from "@/lib/catalog-import";
 import { categorizeProducts, isAiCategorizeConfigured } from "@/lib/ai-categorize";
 import { type CategoryNode } from "@/lib/listings";
 import { computeDealScore } from "@/lib/deal-score";
+import { putFile } from "@/lib/storage";
 
 export interface ImportReport {
   imported: number;
@@ -171,6 +172,28 @@ export async function importCatalogAction(
       ? `${row.description}\n\nColour: ${row.colour}`
       : row.description;
 
+    // A row with no usable image URL but a picture pasted into the sheet gets
+    // that picture uploaded to storage. URLs win when both exist — they cost
+    // nothing to store and are what the supplier deliberately provided.
+    const photoUrls = [...row.imageUrls];
+    if (photoUrls.length === 0 && row.embeddedImages.length > 0) {
+      for (const img of row.embeddedImages) {
+        try {
+          const stored = await putFile({
+            buffer: img.buffer,
+            filename: img.filename,
+            contentType: img.contentType,
+            prefix: "listings",
+          });
+          photoUrls.push(stored.url);
+        } catch (error) {
+          // Losing a photo shouldn't lose the product; the placeholder in the
+          // admin table makes the gap visible so it can be fixed by hand.
+          console.error(`Embedded image upload failed for row ${row.rowNumber}`, error);
+        }
+      }
+    }
+
     const priceCents = row.priceCents as number;
     const condition = (row.condition ?? "NEW") as "NEW";
 
@@ -208,9 +231,9 @@ export async function importCatalogAction(
         widthCm: row.widthIn != null ? Math.round(row.widthIn * 2.54) : null,
         heightCm: row.heightIn != null ? Math.round(row.heightIn * 2.54) : null,
         inventoryQty: row.quantity ?? DEFAULT_INVENTORY,
-        photos: row.imageUrls.length
+        photos: photoUrls.length
           ? {
-              create: row.imageUrls.map((url, i) => ({
+              create: photoUrls.map((url, i) => ({
                 url,
                 altText: row.title.slice(0, 120),
                 sortOrder: i,
