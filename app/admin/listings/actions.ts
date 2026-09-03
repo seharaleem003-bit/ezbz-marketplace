@@ -72,9 +72,28 @@ async function upsertListing(
     };
   }
 
-  const slugOwner = await prisma.listing.findUnique({ where: { slug: data.slug } });
+  // Slugs are unique across every listing, archived and draft included, so
+  // re-adding a product that once existed collides with its ghost. On create
+  // that's not the operator's problem to solve — suffix it, as the importer
+  // does. On edit a collision is a real conflict with a different listing and
+  // still needs a human to pick a name.
+  let slug = data.slug;
+  const slugOwner = await prisma.listing.findUnique({ where: { slug } });
   if (slugOwner && slugOwner.id !== existingId) {
-    return { fieldErrors: { slug: ["That slug is already in use."] } };
+    if (existingId) {
+      return { fieldErrors: { slug: ["That slug is already in use by another listing."] } };
+    }
+    const taken = new Set(
+      (
+        await prisma.listing.findMany({
+          where: { slug: { startsWith: `${data.slug}-` } },
+          select: { slug: true },
+        })
+      ).map((l) => l.slug)
+    );
+    let n = 2;
+    while (taken.has(`${data.slug}-${n}`)) n++;
+    slug = `${data.slug}-${n}`;
   }
 
   const category = await prisma.category.findUnique({ where: { id: data.categoryId } });
@@ -130,7 +149,7 @@ async function upsertListing(
 
   const listingData = {
     title: data.title,
-    slug: data.slug,
+    slug,
     description: data.description,
     categoryId: data.categoryId,
     condition: data.condition,
