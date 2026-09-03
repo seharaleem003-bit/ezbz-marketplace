@@ -189,6 +189,7 @@ async function restoreInventoryForOrders({
 
     await prisma.$transaction(async (tx) => {
       for (const item of order.items) {
+        if (!item.listingId) continue; // listing deleted since — nothing to restock
         await tx.listing.update({
           where: { id: item.listingId },
           data: { inventoryQty: { increment: item.quantity } },

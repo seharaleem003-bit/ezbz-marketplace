@@ -56,6 +56,7 @@ export async function cancelOrderAction(
         data: { status: "CANCELLED" },
       });
       for (const item of order.items) {
+        if (!item.listingId) continue; // listing deleted since — nothing to restock
         await tx.listing.update({
           where: { id: item.listingId },
           data: { inventoryQty: { increment: item.quantity } },
@@ -184,10 +185,12 @@ export async function reduceOrderItemAction(
 
     // refundOrder only restocks on a full refund, so the units removed by a
     // partial adjustment have to be returned to inventory explicitly.
-    await tx.listing.update({
-      where: { id: item.listingId },
-      data: { inventoryQty: { increment: removedUnits } },
-    });
+    if (item.listingId) {
+      await tx.listing.update({
+        where: { id: item.listingId },
+        data: { inventoryQty: { increment: removedUnits } },
+      });
+    }
 
     // An unpaid order's total isn't backed by a Stripe charge, so it can be
     // recalculated directly; a paid one was already adjusted by refundOrder.

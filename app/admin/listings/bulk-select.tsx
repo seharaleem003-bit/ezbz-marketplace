@@ -109,8 +109,8 @@ export function BulkDeleteBar() {
   function onDelete() {
     const ok = window.confirm(
       count === 1
-        ? "Delete this listing? This cannot be undone."
-        : `Delete ${count} listings? This cannot be undone.\n\nAny listing that appears on an order will be archived instead, so the sale's history is kept.`
+        ? "Delete this listing permanently? This cannot be undone."
+        : `Delete ${count} listings permanently? This cannot be undone.`
     );
     if (!ok) return;
     const ids = [...selected];
@@ -161,14 +161,7 @@ export function BulkDeleteBar() {
           role="status"
           className="rounded-lg bg-emerald-50 px-4 py-2 text-sm text-emerald-900 ring-1 ring-emerald-200"
         >
-          Deleted {report.deleted} {report.deleted === 1 ? "listing" : "listings"}.
-          {report.archived.length > 0 ? (
-            <>
-              {" "}
-              {report.archived.length} kept as archived because {report.archived.length === 1 ? "it is" : "they are"} on
-              an order: {report.archived.join(", ")}.
-            </>
-          ) : null}{" "}
+          Deleted {report.deleted} {report.deleted === 1 ? "listing" : "listings"}.{" "}
           <button
             type="button"
             onClick={() => setReport(null)}

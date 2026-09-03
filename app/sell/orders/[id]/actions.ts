@@ -70,7 +70,7 @@ export async function createSellerShipmentAction(orderId: string): Promise<Shipp
         description: item.titleAtPurchase,
         quantity: item.quantity,
         priceCents: item.priceCentsAtPurchase,
-        categorySlug: item.listing.category.slug,
+        categorySlug: item.listing?.category.slug ?? null,
       })),
     });
 

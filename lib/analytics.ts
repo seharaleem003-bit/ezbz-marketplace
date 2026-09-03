@@ -138,14 +138,17 @@ async function topProducts(days: number, limit: number): Promise<TopProduct[]> {
 
   const byListing = new Map<string, TopProduct>();
   for (const item of items) {
-    const existing = byListing.get(item.listingId);
+    // A deleted listing leaves its line items behind with a null listingId;
+    // group those by the purchased title so the sale still counts.
+    const key = item.listingId ?? `deleted:${item.titleAtPurchase}`;
+    const existing = byListing.get(key);
     const revenue = item.priceCentsAtPurchase * item.quantity;
     if (existing) {
       existing.unitsSold += item.quantity;
       existing.revenueCents += revenue;
     } else {
-      byListing.set(item.listingId, {
-        listingId: item.listingId,
+      byListing.set(key, {
+        listingId: key,
         title: item.titleAtPurchase,
         slug: item.listing?.slug ?? null,
         unitsSold: item.quantity,

@@ -151,15 +151,20 @@ async function getCoPurchased(listingId: string, limit: number): Promise<Recomme
 
   const siblings = await prisma.orderItem.groupBy({
     by: ["listingId"],
-    where: { orderId: { in: orderIds }, listingId: { not: listingId } },
+    // Line items whose listing was deleted have no listingId; skip them.
+    where: {
+      orderId: { in: orderIds },
+      AND: [{ listingId: { not: listingId } }, { listingId: { not: null } }],
+    },
     _sum: { quantity: true },
     orderBy: { _sum: { quantity: "desc" } },
     take: limit,
   });
-  if (siblings.length === 0) return [];
+  const siblingIds = siblings.map((s) => s.listingId).filter((id): id is string => id !== null);
+  if (siblingIds.length === 0) return [];
 
   const listings = (await prisma.listing.findMany({
-    where: { id: { in: siblings.map((s) => s.listingId) }, status: "PUBLISHED" },
+    where: { id: { in: siblingIds }, status: "PUBLISHED" },
     select: SELECT,
   })) as RawListing[];
 

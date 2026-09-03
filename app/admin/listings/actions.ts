@@ -292,11 +292,11 @@ export async function setListingStatusAction(
 /**
  * Permanently removes a listing.
  *
- * Admin-only: staff build the catalogue, they don't destroy it. A listing that
- * appears on any order is refused rather than deleted — the order records the
- * sale and deleting the listing would take that history with it. Archiving
- * hides it from shoppers and keeps the record, which is what's wanted in
- * practice.
+ * Admin-only: staff build the catalogue, they don't destroy it. Delete means
+ * delete, even for a listing that has sold: each order line keeps its own
+ * title and price snapshot and its listing link is simply cleared
+ * (OrderItem.listingId is nullable, ON DELETE SET NULL), so the sale history
+ * stays intact and readable — only the "view product" link goes.
  */
 export async function deleteListingAction(
   listingId: string
@@ -305,21 +305,9 @@ export async function deleteListingAction(
 
   const listing = await prisma.listing.findUnique({
     where: { id: listingId },
-    select: {
-      title: true,
-      slug: true,
-      _count: { select: { orderItems: true } },
-    },
+    select: { slug: true },
   });
   if (!listing) return { error: "That listing no longer exists." };
-
-  if (listing._count.orderItems > 0) {
-    return {
-      error: `"${listing.title}" appears on ${listing._count.orderItems} order${
-        listing._count.orderItems === 1 ? "" : "s"
-      }, so deleting it would break that order history. Archive it instead — it disappears from the shop either way.`,
-    };
-  }
 
   // Carts and wishlists block the delete and would point at nothing anyway.
   await prisma.cartItem.deleteMany({ where: { listingId } });
@@ -336,51 +324,33 @@ export async function deleteListingAction(
 
 export interface BulkDeleteReport {
   deleted: number;
-  /** Titles archived instead of deleted because an order references them. */
-  archived: string[];
 }
 
 /**
- * Deletes many listings at once, admin-only.
- *
- * Same rule as the single delete, applied per item: a listing that appears on
- * any order is archived rather than deleted, because the order references it
- * and deleting would take that sale's history with it. The report says which
- * ones, so an admin who expected everything gone knows why some remain.
+ * Deletes many listings at once, admin-only. Same semantics as the single
+ * delete: everything selected is removed; order lines keep their snapshots.
  */
 export async function bulkDeleteListingsAction(ids: string[]): Promise<BulkDeleteReport> {
   await requireAdmin();
 
   const unique = [...new Set(ids)].filter(Boolean);
-  if (unique.length === 0) return { deleted: 0, archived: [] };
+  if (unique.length === 0) return { deleted: 0 };
 
   const listings = await prisma.listing.findMany({
     where: { id: { in: unique } },
-    select: { id: true, title: true, slug: true, _count: { select: { orderItems: true } } },
+    select: { id: true, slug: true },
   });
-
-  const toArchive = listings.filter((l) => l._count.orderItems > 0);
-  const toDelete = listings.filter((l) => l._count.orderItems === 0);
+  const all = listings.map((l) => l.id);
 
   // Carts and wishlists block deletion and would point at nothing anyway.
-  const all = listings.map((l) => l.id);
   await prisma.cartItem.deleteMany({ where: { listingId: { in: all } } });
   await prisma.watch.deleteMany({ where: { listingId: { in: all } } });
-
-  if (toArchive.length > 0) {
-    await prisma.listing.updateMany({
-      where: { id: { in: toArchive.map((l) => l.id) } },
-      data: { status: "ARCHIVED", inventoryQty: 0 },
-    });
-  }
-  if (toDelete.length > 0) {
-    await prisma.listing.deleteMany({ where: { id: { in: toDelete.map((l) => l.id) } } });
-  }
+  const result = await prisma.listing.deleteMany({ where: { id: { in: all } } });
 
   revalidatePath("/admin/listings");
   revalidatePath("/listings");
   revalidatePath("/");
   for (const l of listings) revalidatePath(`/listings/${l.slug}`);
 
-  return { deleted: toDelete.length, archived: toArchive.map((l) => l.title) };
+  return { deleted: result.count };
 }

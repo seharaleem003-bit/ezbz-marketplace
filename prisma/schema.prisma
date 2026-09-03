@@ -587,8 +587,11 @@ model OrderItem {
   id                   String  @id @default(cuid())
   orderId              String
   order                Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  listingId            String
-  listing              Listing @relation(fields: [listingId], references: [id])
+  // Nullable so a listing can be deleted outright. The line item keeps its
+  // own title and price snapshot below, so the order stays readable after
+  // the product is gone; only the "view product" link stops working.
+  listingId            String?
+  listing              Listing? @relation(fields: [listingId], references: [id], onDelete: SetNull)
   titleAtPurchase      String
   priceCentsAtPurchase Int
   quantity             Int

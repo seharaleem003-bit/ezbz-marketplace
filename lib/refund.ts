@@ -81,6 +81,7 @@ export async function refundOrder(orderId: string, amountCentsInput?: number) {
     // sale and its inventory decrement intact.
     if (isFullRefund) {
       for (const item of order.items) {
+        if (!item.listingId) continue; // listing deleted since — nothing to restock
         await tx.listing.update({
           where: { id: item.listingId },
           data: { inventoryQty: { increment: item.quantity } },

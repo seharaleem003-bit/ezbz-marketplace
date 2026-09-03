@@ -36,8 +36,8 @@ export function DeleteListingButton({
         <Trash2 className="size-4" />
       </button>
 
-      {/* Shown inline rather than as a toast: the usual failure is "this is on
-          an order", which is an explanation the admin needs to read. */}
+      {/* Shown inline rather than as a toast so a failure (listing already
+          gone, network error) is read rather than missed. */}
       {error ? (
         <p className="mt-1 max-w-xs text-right text-xs text-destructive" role="alert">
           {error}
