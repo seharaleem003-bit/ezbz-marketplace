@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
@@ -8,6 +9,7 @@ import { SiteFooter } from "@/components/site-footer";
 import { SupportWidget } from "@/components/support-widget";
 import { Toaster } from "@/components/ui/sonner";
 import { ServiceWorkerRegistrar } from "@/components/service-worker-registrar";
+import { LiveActivityFeed } from "@/components/live-activity-feed";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -58,6 +60,11 @@ export default function RootLayout({
         <main className="flex flex-1 flex-col">{children}</main>
         <SiteFooter />
         <SupportWidget />
+        {/* Suspense keeps its query off the critical path — the page renders
+            without waiting, and the pop-up appears seconds later anyway. */}
+        <Suspense fallback={null}>
+          <LiveActivityFeed />
+        </Suspense>
         <Toaster />
         <ServiceWorkerRegistrar />
       </body>
