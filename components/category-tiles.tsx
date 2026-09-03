@@ -86,33 +86,35 @@ export async function CategoryTiles() {
             <Link
               key={dept.slug}
               href={`/listings?category=${dept.slug}`}
-              className="group relative flex h-32 items-end overflow-hidden rounded-xl text-white sm:h-40"
+              className="group flex flex-col overflow-hidden rounded-xl ring-1 ring-foreground/10 transition-shadow hover:shadow-md"
             >
-              {dept.photoUrl ? (
-                <>
+              {/* The photo is shown whole, not cropped to fill. A department
+                  tile that beheads its own product photo undercuts the shop
+                  more than an empty margin ever could. */}
+              <div className="relative h-28 w-full bg-white sm:h-36">
+                {dept.photoUrl ? (
                   <Image
                     src={dept.photoUrl}
                     alt=""
                     fill
                     sizes="(min-width: 1024px) 33vw, 50vw"
-                    className="object-cover transition-transform duration-500 group-hover:scale-105"
+                    className="object-contain p-3 transition-transform duration-500 group-hover:scale-105"
                   />
-                  {/* Gradient rather than a flat wash, so the photo still reads
-                      at the top while the text stays legible at the bottom. */}
-                  <div className="absolute inset-0 bg-linear-to-t from-navy-950/85 via-navy-950/40 to-navy-950/10" />
-                </>
-              ) : (
-                <div className={`absolute inset-0 ${BACKDROPS[i % BACKDROPS.length]}`} />
-              )}
+                ) : (
+                  <div className={`absolute inset-0 ${BACKDROPS[i % BACKDROPS.length]}`} />
+                )}
+              </div>
 
-              <div className="relative z-10 flex w-full items-end justify-between gap-2 p-4">
+              {/* Label in its own band, so legibility never depends on what the
+                  photo happens to look like underneath. */}
+              <div className="flex items-center justify-between gap-2 bg-navy-900 px-4 py-3 text-white">
                 <div className="min-w-0">
-                  <p className="truncate font-heading text-lg font-semibold sm:text-xl">{label}</p>
-                  <p className="mt-0.5 text-xs text-white/80">
+                  <p className="truncate font-heading text-base font-semibold sm:text-lg">{label}</p>
+                  <p className="mt-0.5 text-xs text-white/75">
                     {dict.browse.resultsFound.replace("{count}", String(dept.count))}
                   </p>
                 </div>
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-white/20 transition-colors group-hover:bg-white/35">
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-white/15 transition-colors group-hover:bg-gold-500 group-hover:text-navy-900">
                   <ArrowRight className="size-4" />
                 </span>
               </div>
