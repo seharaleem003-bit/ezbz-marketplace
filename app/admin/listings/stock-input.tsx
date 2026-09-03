@@ -1,17 +1,22 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
-import { Check } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Check, Loader2 } from "lucide-react";
 
 import { setListingStockAction } from "./stock-actions";
+
+type Status = "idle" | "saving" | "saved" | "error";
 
 /**
  * Editable stock cell for the listings table.
  *
- * Saves on blur or Enter rather than on every keystroke, so typing "12"
- * doesn't briefly persist "1". Escape restores the saved value. The tick is
- * shown only briefly — a permanent one would be indistinguishable from a
- * control that does nothing.
+ * Saves on its own a moment after typing stops, and immediately on blur or
+ * Enter, so there is no way to leave an edit unsaved — an earlier version
+ * saved only on blur, which read as "it didn't save" to anyone who typed a
+ * number and looked at it. Escape restores the last saved value.
+ *
+ * The status word next to the box is the whole point: a silent input gives
+ * an operator no way to tell a save from a no-op.
  */
 export function StockInput({
   listingId,
@@ -24,41 +29,85 @@ export function StockInput({
 }) {
   const [saved, setSaved] = useState(initialQty);
   const [value, setValue] = useState(String(initialQty));
-  const [error, setError] = useState<string | null>(null);
-  const [justSaved, setJustSaved] = useState(false);
-  const [isPending, startTransition] = useTransition();
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [status, setStatus] = useState<Status>("idle");
+  const [message, setMessage] = useState<string | null>(null);
+
+  const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clearSaved = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Guards against an older, slower save overwriting a newer one.
+  const seq = useRef(0);
+  const savedRef = useRef(initialQty);
+
+  useEffect(() => {
+    savedRef.current = saved;
+  }, [saved]);
 
   useEffect(() => {
     return () => {
-      if (timer.current) clearTimeout(timer.current);
+      if (debounce.current) clearTimeout(debounce.current);
+      if (clearSaved.current) clearTimeout(clearSaved.current);
     };
   }, []);
 
-  function commit() {
-    const trimmed = value.trim();
-    const next = Number(trimmed);
+  const save = useCallback(
+    async (next: number) => {
+      if (next === savedRef.current) return;
 
-    if (trimmed === "" || !Number.isInteger(next) || next < 0) {
-      setValue(String(saved));
-      setError(null);
+      const ticket = ++seq.current;
+      setStatus("saving");
+      setMessage(null);
+
+      try {
+        const result = await setListingStockAction(listingId, next);
+        if (ticket !== seq.current) return; // superseded by a newer edit
+
+        if (result.error) {
+          setStatus("error");
+          setMessage(result.error);
+          return;
+        }
+        setSaved(next);
+        savedRef.current = next;
+        setStatus("saved");
+        if (clearSaved.current) clearTimeout(clearSaved.current);
+        clearSaved.current = setTimeout(() => setStatus("idle"), 2000);
+      } catch {
+        if (ticket !== seq.current) return;
+        setStatus("error");
+        setMessage("Couldn't save. Check your connection and try again.");
+      }
+    },
+    [listingId]
+  );
+
+  /** Parses the box; returns null when it isn't a usable stock number yet. */
+  function parse(raw: string): number | null {
+    const trimmed = raw.trim();
+    if (trimmed === "") return null;
+    const n = Number(trimmed);
+    return Number.isInteger(n) && n >= 0 ? n : null;
+  }
+
+  function onChange(raw: string) {
+    setValue(raw);
+    if (status === "error") {
+      setStatus("idle");
+      setMessage(null);
+    }
+    if (debounce.current) clearTimeout(debounce.current);
+    const parsed = parse(raw);
+    if (parsed === null) return;
+    debounce.current = setTimeout(() => void save(parsed), 700);
+  }
+
+  function commitNow() {
+    if (debounce.current) clearTimeout(debounce.current);
+    const parsed = parse(value);
+    if (parsed === null) {
+      setValue(String(saved)); // unusable entry — put the saved number back
       return;
     }
-    if (next === saved) return;
-
-    setError(null);
-    startTransition(async () => {
-      const result = await setListingStockAction(listingId, next);
-      if (result.error) {
-        setError(result.error);
-        setValue(String(saved));
-        return;
-      }
-      setSaved(next);
-      setJustSaved(true);
-      if (timer.current) clearTimeout(timer.current);
-      timer.current = setTimeout(() => setJustSaved(false), 1600);
-    });
+    void save(parsed);
   }
 
   return (
@@ -70,37 +119,49 @@ export function StockInput({
           step={1}
           inputMode="numeric"
           value={value}
-          disabled={isPending}
           aria-label={`Stock for ${title}`}
-          onChange={(e) => setValue(e.target.value)}
-          onBlur={commit}
+          onChange={(e) => onChange(e.target.value)}
+          onBlur={commitNow}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               e.preventDefault();
-              e.currentTarget.blur();
+              commitNow();
             } else if (e.key === "Escape") {
+              if (debounce.current) clearTimeout(debounce.current);
               setValue(String(saved));
+              setStatus("idle");
+              setMessage(null);
               e.currentTarget.blur();
             }
           }}
           className={[
             "h-8 w-16 rounded-md border bg-background px-2 text-sm tabular-nums",
             "focus:outline-none focus:ring-2 focus:ring-navy-800/40",
-            error ? "border-destructive" : "border-input",
-            isPending ? "opacity-60" : "",
+            status === "error" ? "border-destructive" : "border-input",
             saved === 0 ? "text-destructive" : "",
           ].join(" ")}
         />
-        {justSaved && !isPending ? (
-          <Check className="size-4 text-emerald-600" aria-label="Saved" />
+
+        {status === "saving" ? (
+          <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+            <Loader2 className="size-3 animate-spin" />
+            Saving
+          </span>
+        ) : null}
+        {status === "saved" ? (
+          <span className="flex items-center gap-1 text-[11px] font-medium text-emerald-600">
+            <Check className="size-3.5" />
+            Saved
+          </span>
         ) : null}
       </div>
-      {saved === 0 && !error ? (
+
+      {saved === 0 && status !== "error" ? (
         <span className="text-[10px] font-medium text-destructive">Out of stock</span>
       ) : null}
-      {error ? (
-        <span role="alert" className="text-[10px] text-destructive">
-          {error}
+      {message ? (
+        <span role="alert" className="max-w-32 text-[10px] text-destructive">
+          {message}
         </span>
       ) : null}
     </div>

@@ -69,7 +69,10 @@ export default async function AdminListingsPage({
 
   const listings = await prisma.listing.findMany({
     where,
-    orderBy: { updatedAt: "desc" },
+    // Deliberately NOT updatedAt: editing stock in the table changes
+    // updatedAt, which made the row you were typing in jump to the top and
+    // look like the edit had been lost. Creation order never moves.
+    orderBy: { createdAt: "desc" },
     include: {
       category: true,
       photos: { orderBy: { sortOrder: "asc" }, take: 1, select: { url: true } },

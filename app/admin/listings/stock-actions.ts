@@ -39,7 +39,9 @@ export async function setListingStockAction(
     data: { inventoryQty: quantity },
   });
 
-  revalidatePath("/admin/listings");
+  // The storefront needs to reflect the new stock. The admin table is
+  // deliberately NOT revalidated: it renders dynamically anyway, and
+  // re-rendering it mid-edit reshuffled rows under the operator's cursor.
   revalidatePath(`/listings/${listing.slug}`);
   revalidatePath("/listings");
 
