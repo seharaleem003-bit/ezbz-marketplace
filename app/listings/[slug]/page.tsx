@@ -14,6 +14,7 @@ import { ListingGallery } from "./listing-gallery";
 import { RecommendationRow } from "@/components/recommendation-row";
 import { ProductSchema } from "@/components/product-schema";
 import { AppInstallCard } from "@/components/app-install-card";
+import { BundleCard } from "@/components/bundle-card";
 import { getSimilarListings, getBoughtTogether } from "@/lib/recommendations";
 import { isDurableStorageConfigured } from "@/lib/storage";
 import { CornerRibbon, ribbonFor } from "@/components/corner-ribbon";
@@ -130,7 +131,11 @@ export default async function ListingDetailPage({
       categoryId: listing.categoryId,
       priceCents: listing.priceCents,
     }),
-    getBoughtTogether({ listingId: listing.id, categoryId: listing.categoryId }),
+    getBoughtTogether({
+      listingId: listing.id,
+      categoryId: listing.categoryId,
+      priceCents: listing.priceCents,
+    }),
   ]);
   const recLabels = {
     off: dict.listing.off,
@@ -417,16 +422,28 @@ export default async function ListingDetailPage({
       </div>
     </div>
 
-      <RecommendationRow
-        heading={dict.listing.boughtTogetherHeading}
-        subheading={
-          boughtTogether.basis === "co-purchase"
-            ? dict.listing.boughtTogetherReal
-            : dict.listing.boughtTogetherSuggested
-        }
-        items={boughtTogether.items}
-        labels={recLabels}
-      />
+      {boughtTogether.item ? (
+        <BundleCard
+          main={{
+            id: listing.id,
+            title: listing.title,
+            priceCents: listing.priceCents,
+            photoUrl: listing.photos[0]?.url ?? null,
+          }}
+          companion={boughtTogether.item}
+          labels={{
+            heading: dict.listing.boughtTogetherHeading,
+            subheading:
+              boughtTogether.basis === "co-purchase"
+                ? dict.listing.boughtTogetherReal
+                : dict.listing.boughtTogetherSuggested,
+            thisItem: dict.listing.bundleThisItem,
+            total: dict.listing.bundleTotal,
+            addBoth: dict.listing.bundleAddBoth,
+            added: dict.listing.bundleAdded,
+          }}
+        />
+      ) : null}
 
       <RecommendationRow
         heading={dict.listing.similarHeading}

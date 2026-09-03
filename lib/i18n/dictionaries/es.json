@@ -104,7 +104,11 @@
     "similarHeading": "Artículos similares",
     "boughtTogetherHeading": "Se compran juntos frecuentemente",
     "boughtTogetherReal": "Quienes compraron esto también compraron estos.",
-    "boughtTogetherSuggested": "Combina bien con esto — elegido de categorías que le acompañan."
+    "boughtTogetherSuggested": "Combina de forma natural con esto — de la misma categoría.",
+    "bundleThisItem": "Este artículo",
+    "bundleTotal": "Total del paquete",
+    "bundleAddBoth": "Agregar ambos al carrito",
+    "bundleAdded": "Ambos agregados"
   },
   "share": {
     "copyLink": "Copiar enlace",

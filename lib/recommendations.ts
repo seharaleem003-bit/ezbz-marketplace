@@ -171,60 +171,66 @@ async function getCoPurchased(listingId: string, limit: number): Promise<Recomme
 }
 
 /**
- * Categories that complement each other — used until real co-purchase data
- * exists. Keyed by department slug; anything unlisted falls back to other
- * departments, which is still better than recommending a near-duplicate.
+ * One companion to bundle with the listing.
+ *
+ * Real co-purchase data wins when it exists. Until then the companion comes
+ * from the *same* category — a second playpen accessory, another light for the
+ * same room — widening only as far as the parent category if the leaf holds
+ * nothing else. An earlier version reached across "complementary" departments
+ * and paired a baby playpen with a dress-form mannequin, which is exactly the
+ * kind of suggestion that makes a shop look automated rather than curated.
  */
-const COMPLEMENTS: Record<string, string[]> = {
-  pets: ["home-kitchen", "tools-hardware"],
-  "home-kitchen": ["home-decor", "tools-hardware", "beauty-personal-care"],
-  "tools-hardware": ["home-kitchen", "mobility"],
-  mobility: ["tools-hardware", "fitness-outdoors"],
-  "baby-kids": ["home-kitchen", "beauty-personal-care"],
-  "beauty-personal-care": ["home-kitchen", "baby-kids"],
-  "fitness-outdoors": ["mobility", "beauty-personal-care"],
-  electronics: ["home-kitchen", "tools-hardware"],
-};
-
 export async function getBoughtTogether({
   listingId,
   categoryId,
-  limit = 4,
+  priceCents,
 }: {
   listingId: string;
   categoryId: string;
-  limit?: number;
-}): Promise<{ items: RecommendedListing[]; basis: "co-purchase" | "complementary" }> {
-  const real = await getCoPurchased(listingId, limit);
-  if (real.length > 0) return { items: real, basis: "co-purchase" };
+  priceCents: number;
+}): Promise<{ item: RecommendedListing | null; basis: "co-purchase" | "same-category" }> {
+  const real = await getCoPurchased(listingId, 1);
+  if (real.length > 0) return { item: real[0], basis: "co-purchase" };
 
-  const tree = (await prisma.category.findMany({
-    select: { id: true, slug: true, name: true, parentId: true, sortOrder: true },
-  })) as CategoryNode[];
+  const base = {
+    status: "PUBLISHED" as const,
+    inventoryQty: { gt: 0 },
+    isPrebook: false,
+    id: { not: listingId },
+  };
 
-  // Walk up to the department this listing sits in.
-  let cursor = tree.find((c) => c.id === categoryId);
-  let deptSlug = cursor?.slug;
-  while (cursor?.parentId) {
-    cursor = tree.find((c) => c.id === cursor?.parentId);
-    if (cursor) deptSlug = cursor.slug;
-  }
-
-  const wanted = (deptSlug && COMPLEMENTS[deptSlug]) || [];
-  const ids = wanted.flatMap((slug) => collectCategoryIds(tree, slug));
-
-  const items = (await prisma.listing.findMany({
-    where: {
-      status: "PUBLISHED",
-      inventoryQty: { gt: 0 },
-      isPrebook: false,
-      id: { not: listingId },
-      ...(ids.length > 0 ? { categoryId: { in: ids } } : {}),
-    },
-    orderBy: [{ dealScore: "desc" }, { createdAt: "desc" }],
-    take: limit,
+  // Same leaf first.
+  let candidates = (await prisma.listing.findMany({
+    where: { ...base, categoryId },
+    take: 20,
     select: SELECT,
   })) as RawListing[];
 
-  return { items: items.map(shape), basis: "complementary" };
+  // Then the parent category — siblings of the leaf, never a different
+  // department.
+  if (candidates.length === 0) {
+    const tree = (await prisma.category.findMany({
+      select: { id: true, slug: true, name: true, parentId: true, sortOrder: true },
+    })) as CategoryNode[];
+    const node = tree.find((c) => c.id === categoryId);
+    const parent = node?.parentId ? tree.find((c) => c.id === node.parentId) : null;
+    if (parent) {
+      const ids = collectCategoryIds(tree, parent.slug);
+      candidates = (await prisma.listing.findMany({
+        where: { ...base, categoryId: { in: ids } },
+        take: 20,
+        select: SELECT,
+      })) as RawListing[];
+    }
+  }
+
+  if (candidates.length === 0) return { item: null, basis: "same-category" };
+
+  // A companion priced near the main item reads as a natural pair; one at
+  // triple the price reads as an upsell.
+  const best = candidates.sort(
+    (a, b) => Math.abs(a.priceCents - priceCents) - Math.abs(b.priceCents - priceCents)
+  )[0];
+
+  return { item: shape(best), basis: "same-category" };
 }
