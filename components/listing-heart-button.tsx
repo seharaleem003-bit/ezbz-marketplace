@@ -9,9 +9,14 @@ import { cn } from "@/lib/utils";
 export function ListingHeartButton({
   listingId,
   initialWatching,
+  className,
+  iconClassName = "size-6",
 }: {
   listingId: string;
   initialWatching: boolean;
+  /** Wrapper styling — the card uses it to render a round chip like the share button. */
+  className?: string;
+  iconClassName?: string;
 }) {
   const [watching, setWatching] = useState(initialWatching);
   const [isPending, startTransition] = useTransition();
@@ -28,9 +33,12 @@ export function ListingHeartButton({
           setWatching(result.watching);
         })
       }
-      className="text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+      className={cn(
+        "text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50",
+        className
+      )}
     >
-      <Heart className={cn("size-6", watching && "fill-destructive text-destructive")} />
+      <Heart className={cn(iconClassName, watching && "fill-destructive text-destructive")} />
     </button>
   );
 }

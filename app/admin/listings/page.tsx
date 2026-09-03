@@ -46,6 +46,9 @@ export default async function AdminListingsPage() {
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-heading font-semibold">Listings</h1>
         <div className="flex items-center gap-2">
+          <Button variant="outline" render={<Link href="/admin/listings/prices" />}>
+            Amazon prices
+          </Button>
           <Button variant="outline" render={<Link href="/admin/listings/import" />}>
             Import from file
           </Button>

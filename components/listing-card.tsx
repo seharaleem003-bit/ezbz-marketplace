@@ -5,10 +5,13 @@ import { Share2 } from "lucide-react";
 import { DiscountBadge, calculateDiscount } from "@/components/discount-badge";
 import { CornerRibbon, ribbonFor } from "@/components/corner-ribbon";
 import { ShareMenu } from "@/components/share-menu";
+import { ListingHeartButton } from "@/components/listing-heart-button";
 import { formatCents, formatCondition } from "@/lib/format";
 import { getDictionary } from "@/lib/i18n";
+import { getViewerWatchedIds } from "@/lib/watches";
 
 export interface ListingCardData {
+  id: string;
   slug: string;
   title: string;
   priceCents: number;
@@ -31,6 +34,8 @@ export async function ListingCard({
   referralCode?: string | null;
 }) {
   const dict = await getDictionary();
+  // One query per request, not per card — see lib/watches.ts.
+  const watched = await getViewerWatchedIds();
   const photo = listing.photos[0];
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   const listingUrl = `${appUrl}/listings/${listing.slug}`;
@@ -105,7 +110,15 @@ export async function ListingCard({
         aria-label={listing.title}
       />
 
-      <div className="absolute right-2 top-2 z-20">
+      <div className="absolute right-2 top-2 z-20 flex items-center gap-1.5">
+        {/* Saving from the grid, not only from the product page. Signed-out
+            shoppers are sent to log in by the action itself. */}
+        <ListingHeartButton
+          listingId={listing.id}
+          initialWatching={watched.has(listing.id)}
+          iconClassName="size-4"
+          className="flex size-8 items-center justify-center rounded-full bg-background/90 text-foreground shadow-sm ring-1 ring-foreground/10 backdrop-blur hover:bg-background"
+        />
         <ShareMenu
           url={listingUrl}
           title={listing.title}
