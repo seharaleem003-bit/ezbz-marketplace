@@ -12,6 +12,7 @@
 
 const CONDITION_URLS: Record<string, string> = {
   NEW: "https://schema.org/NewCondition",
+  NEW_IN_BOX: "https://schema.org/NewCondition",
   OPEN_BOX: "https://schema.org/NewCondition",
   LIKE_NEW: "https://schema.org/UsedCondition",
   GOOD: "https://schema.org/UsedCondition",

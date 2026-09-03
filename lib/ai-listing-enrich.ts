@@ -22,7 +22,7 @@ export type EnrichedListing = {
   description: string | null;
   /** Short scannable selling points. */
   features: string[];
-  condition: "NEW" | "OPEN_BOX" | "LIKE_NEW" | "GOOD" | "FAIR" | "SALVAGE" | null;
+  condition: "NEW" | "NEW_IN_BOX" | "OPEN_BOX" | "LIKE_NEW" | "GOOD" | "FAIR" | "SALVAGE" | null;
   categoryName: string | null;
   metaTitle: string | null;
   metaDescription: string | null;
@@ -54,7 +54,7 @@ const ENRICH_TOOL = {
       },
       condition: {
         type: "string",
-        enum: ["NEW", "OPEN_BOX", "LIKE_NEW", "GOOD", "FAIR", "SALVAGE"],
+        enum: ["NEW", "NEW_IN_BOX", "OPEN_BOX", "LIKE_NEW", "GOOD", "FAIR", "SALVAGE"],
         description: "Physical condition judged from the photo.",
       },
       categoryName: {
@@ -177,7 +177,7 @@ export async function enrichListingFromImage({
     description: asString(input.description),
     features: asStringArray(input.features),
     condition:
-      condition && ["NEW", "OPEN_BOX", "LIKE_NEW", "GOOD", "FAIR", "SALVAGE"].includes(condition)
+      condition && ["NEW", "NEW_IN_BOX", "OPEN_BOX", "LIKE_NEW", "GOOD", "FAIR", "SALVAGE"].includes(condition)
         ? (condition as EnrichedListing["condition"])
         : null,
     categoryName: asString(input.categoryName),

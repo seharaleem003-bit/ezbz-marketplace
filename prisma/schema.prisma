@@ -323,6 +323,9 @@ model MessageAttachment {
 
 enum ListingCondition {
   NEW
+  // Factory-sealed in its original packaging — never opened. Ranks with NEW
+  // for scoring and for schema.org, but shoppers want to see the words.
+  NEW_IN_BOX
   // Sealed product, box opened — the item itself is unused. Sits directly
   // below NEW because that's how a shopper ranks it.
   OPEN_BOX
@@ -350,7 +353,9 @@ model Listing {
 
   priceCents       Int
   retailPriceCents Int?
-  inventoryQty     Int          @default(0)
+  // One unit on hand until the admin says otherwise — most listings here are
+  // single items, so a new listing shouldn't start life as sold out.
+  inventoryQty     Int          @default(1)
 
   dealScore          Int       @default(0)
   dealScoreUpdatedAt DateTime?

@@ -35,7 +35,7 @@ export const listingFormSchema = z.object({
     .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Use lowercase letters, numbers, and hyphens only"),
   description: z.string().trim().min(1, "Description is required"),
   categoryId: z.string().trim().min(1, "Category is required"),
-  condition: z.enum(["NEW", "OPEN_BOX", "LIKE_NEW", "GOOD", "FAIR", "SALVAGE"]),
+  condition: z.enum(["NEW", "NEW_IN_BOX", "OPEN_BOX", "LIKE_NEW", "GOOD", "FAIR", "SALVAGE"]),
   status: z.enum(["DRAFT", "PUBLISHED", "ARCHIVED"]),
   price: z.preprocess((val) => {
     if (typeof val !== "string" || val.trim() === "") return undefined;
@@ -66,10 +66,12 @@ export const listingFormSchema = z.object({
   lengthIn: optionalPositiveNumber(),
   widthIn: optionalPositiveNumber(),
   heightIn: optionalPositiveNumber(),
+  // Blank means "one on hand", not sold out — the admin raises it when there
+  // are more. Zero still has to be typed deliberately.
   inventoryQty: z.preprocess((val) => {
-    if (typeof val !== "string" || val.trim() === "") return 0;
+    if (typeof val !== "string" || val.trim() === "") return 1;
     const num = Number(val);
-    return Number.isNaN(num) ? 0 : num;
+    return Number.isNaN(num) ? 1 : num;
   }, z.number().int().nonnegative()),
   photoUrls: z.string().optional(),
   videoUrl: optionalUrl(),

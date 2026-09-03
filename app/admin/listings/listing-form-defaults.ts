@@ -44,7 +44,7 @@ export const EMPTY_LISTING_FORM_DEFAULTS: ListingFormDefaults = {
   lengthIn: "",
   widthIn: "",
   heightIn: "",
-  inventoryQty: "0",
+  inventoryQty: "1",
   photoUrls: "",
   videoUrl: "",
   videoCaption: "",

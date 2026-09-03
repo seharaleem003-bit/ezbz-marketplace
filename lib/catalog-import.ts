@@ -97,14 +97,18 @@ function parsePrice(raw: unknown): number | null {
   return Number.isFinite(value) && value > 0 ? Math.round(value * 100) : null;
 }
 
-const CONDITIONS = ["NEW", "OPEN_BOX", "LIKE_NEW", "GOOD", "FAIR", "SALVAGE"];
+const CONDITIONS = ["NEW", "NEW_IN_BOX", "OPEN_BOX", "LIKE_NEW", "GOOD", "FAIR", "SALVAGE"];
 
 function parseCondition(raw: string | null): string | null {
   if (!raw) return null;
   const n = normalise(raw).replace(/\s+/g, "_").toUpperCase();
   if (CONDITIONS.includes(n)) return n;
-  if (n.startsWith("NEW")) return "NEW";
+  // "Open box" is checked before the NEW family: "brand new, open box" is
+  // open box, and "new in box" / "NIB" / "sealed" is factory-sealed.
   if (n.includes("OPEN") && n.includes("BOX")) return "OPEN_BOX";
+  if (n === "NIB" || n === "BNIB" || n.includes("SEALED") || (n.startsWith("NEW") && n.includes("BOX")))
+    return "NEW_IN_BOX";
+  if (n.startsWith("NEW")) return "NEW";
   if (n.includes("LIKE")) return "LIKE_NEW";
   if (n.startsWith("GOOD") || n.includes("USED")) return "GOOD";
   if (n.startsWith("FAIR")) return "FAIR";

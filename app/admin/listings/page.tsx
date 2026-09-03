@@ -16,6 +16,12 @@ import {
 import { ListingStatusActions } from "./status-actions";
 import { requireCatalogAccess } from "@/lib/auth/dal";
 import { DeleteListingButton } from "./delete-button";
+import {
+  BulkDeleteBar,
+  BulkSelectAllCheckbox,
+  BulkSelectCheckbox,
+  BulkSelectProvider,
+} from "./bulk-select";
 
 export const metadata: Metadata = {
   title: "Manage listings",
@@ -56,10 +62,19 @@ export default async function AdminListingsPage() {
         </div>
       </div>
 
+      {/* Selection state is client-side; the table stays a server component.
+          Only admins can delete, so staff never see the tick boxes. */}
+      <BulkSelectProvider allIds={isAdmin ? listings.map((l) => l.id) : []}>
+      {isAdmin ? <BulkDeleteBar /> : null}
       <div className="overflow-x-auto rounded-xl bg-card ring-1 ring-foreground/10">
         <Table>
           <TableHeader>
             <TableRow>
+              {isAdmin ? (
+                <TableHead className="w-10">
+                  <BulkSelectAllCheckbox />
+                </TableHead>
+              ) : null}
               <TableHead className="w-16">Photo</TableHead>
               <TableHead>Title</TableHead>
               <TableHead>Category</TableHead>
@@ -73,6 +88,11 @@ export default async function AdminListingsPage() {
           <TableBody>
             {listings.map((listing) => (
               <TableRow key={listing.id}>
+                {isAdmin ? (
+                  <TableCell>
+                    <BulkSelectCheckbox id={listing.id} title={listing.title} />
+                  </TableCell>
+                ) : null}
                 <TableCell>
                   {listing.photos[0]?.url ? (
                     <Image
@@ -106,6 +126,15 @@ export default async function AdminListingsPage() {
                   {/* One flex row, so the trash icon sits beside the status
                       buttons instead of wrapping onto its own line. */}
                   <div className="flex items-center justify-end gap-1.5">
+                    {/* Edit works at every status, published included — a
+                        saved change goes live on the next request. */}
+                    <Link
+                      href={`/admin/listings/${listing.id}/edit`}
+                      className="text-sm font-medium text-navy-800 hover:underline"
+                    >
+                      Edit
+                    </Link>
+                    <span aria-hidden className="text-muted-foreground/50">·</span>
                     <Link
                       href={`/listings/${listing.slug}`}
                       target="_blank"
@@ -124,7 +153,7 @@ export default async function AdminListingsPage() {
             ))}
             {listings.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
+                <TableCell colSpan={isAdmin ? 9 : 8} className="py-8 text-center text-muted-foreground">
                   No listings yet.
                 </TableCell>
               </TableRow>
@@ -132,6 +161,7 @@ export default async function AdminListingsPage() {
           </TableBody>
         </Table>
       </div>
+      </BulkSelectProvider>
     </div>
   );
 }

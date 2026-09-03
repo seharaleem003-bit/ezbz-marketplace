@@ -7,7 +7,7 @@ export const PAGE_SIZE = 12;
 export const SORT_OPTIONS = ["newest", "price-asc", "price-desc", "deal-score-desc"] as const;
 export type ListingSort = (typeof SORT_OPTIONS)[number];
 
-const CONDITIONS: ListingCondition[] = ["NEW", "OPEN_BOX", "LIKE_NEW", "GOOD", "FAIR", "SALVAGE"];
+const CONDITIONS: ListingCondition[] = ["NEW", "NEW_IN_BOX", "OPEN_BOX", "LIKE_NEW", "GOOD", "FAIR", "SALVAGE"];
 
 export interface ListingSearchParams {
   q?: string;

@@ -20,7 +20,8 @@ export interface ImportReport {
 export type ImportState = { report?: ImportReport; error?: string } | undefined;
 
 const MAX_BYTES = 5 * 1024 * 1024;
-const DEFAULT_INVENTORY = 10;
+// One unit unless the sheet's Quantity column says otherwise.
+const DEFAULT_INVENTORY = 1;
 
 function slugify(value: string, max = 70) {
   return value

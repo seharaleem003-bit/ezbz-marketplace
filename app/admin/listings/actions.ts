@@ -333,3 +333,54 @@ export async function deleteListingAction(
 
   return { deleted: true };
 }
+
+export interface BulkDeleteReport {
+  deleted: number;
+  /** Titles archived instead of deleted because an order references them. */
+  archived: string[];
+}
+
+/**
+ * Deletes many listings at once, admin-only.
+ *
+ * Same rule as the single delete, applied per item: a listing that appears on
+ * any order is archived rather than deleted, because the order references it
+ * and deleting would take that sale's history with it. The report says which
+ * ones, so an admin who expected everything gone knows why some remain.
+ */
+export async function bulkDeleteListingsAction(ids: string[]): Promise<BulkDeleteReport> {
+  await requireAdmin();
+
+  const unique = [...new Set(ids)].filter(Boolean);
+  if (unique.length === 0) return { deleted: 0, archived: [] };
+
+  const listings = await prisma.listing.findMany({
+    where: { id: { in: unique } },
+    select: { id: true, title: true, slug: true, _count: { select: { orderItems: true } } },
+  });
+
+  const toArchive = listings.filter((l) => l._count.orderItems > 0);
+  const toDelete = listings.filter((l) => l._count.orderItems === 0);
+
+  // Carts and wishlists block deletion and would point at nothing anyway.
+  const all = listings.map((l) => l.id);
+  await prisma.cartItem.deleteMany({ where: { listingId: { in: all } } });
+  await prisma.watch.deleteMany({ where: { listingId: { in: all } } });
+
+  if (toArchive.length > 0) {
+    await prisma.listing.updateMany({
+      where: { id: { in: toArchive.map((l) => l.id) } },
+      data: { status: "ARCHIVED", inventoryQty: 0 },
+    });
+  }
+  if (toDelete.length > 0) {
+    await prisma.listing.deleteMany({ where: { id: { in: toDelete.map((l) => l.id) } } });
+  }
+
+  revalidatePath("/admin/listings");
+  revalidatePath("/listings");
+  revalidatePath("/");
+  for (const l of listings) revalidatePath(`/listings/${l.slug}`);
+
+  return { deleted: toDelete.length, archived: toArchive.map((l) => l.title) };
+}

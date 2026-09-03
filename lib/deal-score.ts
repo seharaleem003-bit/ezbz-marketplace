@@ -4,6 +4,7 @@ import type { ListingCondition } from "@prisma/client";
 // scale the condition component of the score.
 const CONDITION_WEIGHT: Record<ListingCondition, number> = {
   NEW: 1,
+  NEW_IN_BOX: 1,
   OPEN_BOX: 0.97,
   LIKE_NEW: 0.9,
   GOOD: 0.75,

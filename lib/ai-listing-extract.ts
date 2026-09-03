@@ -10,7 +10,7 @@ import Anthropic from "@anthropic-ai/sdk";
 export type ExtractedListingDraft = {
   title: string | null;
   description: string | null;
-  condition: "NEW" | "OPEN_BOX" | "LIKE_NEW" | "GOOD" | "FAIR" | "SALVAGE" | null;
+  condition: "NEW" | "NEW_IN_BOX" | "OPEN_BOX" | "LIKE_NEW" | "GOOD" | "FAIR" | "SALVAGE" | null;
   priceCents: number | null;
   categoryName: string | null;
 };
@@ -28,7 +28,7 @@ const EXTRACT_TOOL = {
       },
       condition: {
         type: "string",
-        enum: ["NEW", "OPEN_BOX", "LIKE_NEW", "GOOD", "FAIR", "SALVAGE"],
+        enum: ["NEW", "NEW_IN_BOX", "OPEN_BOX", "LIKE_NEW", "GOOD", "FAIR", "SALVAGE"],
         description: "Best guess at physical condition from what's visible",
       },
       priceCents: {
@@ -104,7 +104,7 @@ export async function extractListingFromImage({
     description: typeof input.description === "string" ? input.description : null,
     condition:
       typeof input.condition === "string" &&
-      ["NEW", "OPEN_BOX", "LIKE_NEW", "GOOD", "FAIR", "SALVAGE"].includes(input.condition)
+      ["NEW", "NEW_IN_BOX", "OPEN_BOX", "LIKE_NEW", "GOOD", "FAIR", "SALVAGE"].includes(input.condition)
         ? (input.condition as ExtractedListingDraft["condition"])
         : null,
     priceCents: typeof input.priceCents === "number" ? Math.round(input.priceCents) : null,

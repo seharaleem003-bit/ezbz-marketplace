@@ -19,7 +19,7 @@ const COLUMNS: { header: string; width: number; note: string; example: string | 
   { header: "Amazon Price", width: 14, note: "Turns on the % off badge and Deal Score.", example: 119.99 },
   { header: "Retail Price", width: 13, note: "Optional. Shown struck through.", example: 89.99 },
   { header: "Quantity", width: 10, note: "Stock on hand. Defaults to 10 if blank.", example: 4 },
-  { header: "Condition", width: 14, note: "New, Open Box, Like New, Good, Fair, Salvage.", example: "New" },
+  { header: "Condition", width: 14, note: "New, New in Box, Open Box, Like New, Good, Fair, Salvage.", example: "New" },
   { header: "Color", width: 12, note: "Optional. Appended to the description.", example: "Clear" },
   { header: "Weight (lb)", width: 12, note: "All four size fields needed for live shipping rates.", example: 12.5 },
   { header: "Length (in)", width: 12, note: "Longest side of the shipping box.", example: 24 },
