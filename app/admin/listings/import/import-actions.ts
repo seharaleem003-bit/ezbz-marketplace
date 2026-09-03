@@ -206,6 +206,7 @@ export async function importCatalogAction(
         categoryId,
         condition,
         status: publish ? "PUBLISHED" : "DRAFT",
+        publishedAt: publish ? new Date() : null,
         priceCents,
         retailPriceCents: row.retailPriceCents,
         amazonPriceCents: row.amazonPriceCents,

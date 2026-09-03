@@ -22,6 +22,8 @@ import {
   BulkSelectCheckbox,
   BulkSelectProvider,
 } from "./bulk-select";
+import { StockInput } from "./stock-input";
+import { ListingSearchForm } from "./search-form";
 
 export const metadata: Metadata = {
   title: "Manage listings",
@@ -35,11 +37,38 @@ const STATUS_LABELS: Record<string, string> = {
   ARCHIVED: "Archived",
 };
 
-export default async function AdminListingsPage() {
+/** Short, unambiguous date — "3 Sep 2026" rather than a locale-dependent 3/9. */
+const DATE_FORMAT = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+});
+
+export default async function AdminListingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
   const session = await requireCatalogAccess();
   const isAdmin = session.user.role === "ADMIN";
+  const query = (await searchParams).q?.trim() ?? "";
+
+  // Matches the fields an operator would actually search by: the product name,
+  // its category, the SEO keywords written for it, and the slug.
+  const where = query
+    ? {
+        OR: [
+          { title: { contains: query, mode: "insensitive" as const } },
+          { description: { contains: query, mode: "insensitive" as const } },
+          { slug: { contains: query, mode: "insensitive" as const } },
+          { searchKeywords: { contains: query, mode: "insensitive" as const } },
+          { category: { name: { contains: query, mode: "insensitive" as const } } },
+        ],
+      }
+    : {};
 
   const listings = await prisma.listing.findMany({
+    where,
     orderBy: { updatedAt: "desc" },
     include: {
       category: true,
@@ -49,7 +78,7 @@ export default async function AdminListingsPage() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-4 flex items-center justify-between">
         <h1 className="text-2xl font-heading font-semibold">Listings</h1>
         <div className="flex items-center gap-2">
           <Button variant="outline" render={<Link href="/admin/listings/prices" />}>
@@ -60,6 +89,16 @@ export default async function AdminListingsPage() {
           </Button>
           <Button render={<Link href="/admin/listings/new" />}>New listing</Button>
         </div>
+      </div>
+
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <ListingSearchForm initialQuery={query} />
+        {query ? (
+          <p className="text-sm text-muted-foreground">
+            {listings.length} {listings.length === 1 ? "result" : "results"} for &ldquo;{query}
+            &rdquo;
+          </p>
+        ) : null}
       </div>
 
       {/* Selection state is client-side; the table stays a server component.
@@ -79,6 +118,7 @@ export default async function AdminListingsPage() {
               <TableHead>Title</TableHead>
               <TableHead>Category</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Published</TableHead>
               <TableHead>Price</TableHead>
               <TableHead>Deal Score</TableHead>
               <TableHead>Stock</TableHead>
@@ -117,9 +157,22 @@ export default async function AdminListingsPage() {
                 </TableCell>
                 <TableCell>{listing.category.name}</TableCell>
                 <TableCell>{STATUS_LABELS[listing.status] ?? listing.status}</TableCell>
+                <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                  {listing.publishedAt ? (
+                    DATE_FORMAT.format(listing.publishedAt)
+                  ) : (
+                    <span className="text-muted-foreground/60">Not published</span>
+                  )}
+                </TableCell>
                 <TableCell>{formatCents(listing.priceCents)}</TableCell>
                 <TableCell>{listing.dealScore}</TableCell>
-                <TableCell>{listing.inventoryQty}</TableCell>
+                <TableCell>
+                  <StockInput
+                    listingId={listing.id}
+                    initialQty={listing.inventoryQty}
+                    title={listing.title}
+                  />
+                </TableCell>
                 <TableCell>
                   {/* Opens in a new tab so the admin doesn't lose their place
                       in the list. Drafts are visible here to admin/staff only. */}
@@ -153,8 +206,11 @@ export default async function AdminListingsPage() {
             ))}
             {listings.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={isAdmin ? 9 : 8} className="py-8 text-center text-muted-foreground">
-                  No listings yet.
+                <TableCell
+                  colSpan={isAdmin ? 10 : 9}
+                  className="py-8 text-center text-muted-foreground"
+                >
+                  {query ? `No listings match “${query}”.` : "No listings yet."}
                 </TableCell>
               </TableRow>
             ) : null}

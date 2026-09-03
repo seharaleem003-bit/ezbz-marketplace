@@ -357,6 +357,11 @@ model Listing {
   // single items, so a new listing shouldn't start life as sold out.
   inventoryQty     Int          @default(1)
 
+  // When this listing first went live. Set on the transition into PUBLISHED
+  // and never rewritten, so unpublishing and republishing keeps the original
+  // date rather than making the product look newly listed.
+  publishedAt DateTime?
+
   dealScore          Int       @default(0)
   dealScoreUpdatedAt DateTime?
 

@@ -178,18 +178,27 @@ async function upsertListing(
   };
 
   // Captured before the write so we can tell whether this save is the moment
-  // the listing stopped being a pre-book — that's what triggers the waitlist.
-  const wasPrebook = existingId
-    ? (await prisma.listing.findUnique({
+  // the listing stopped being a pre-book — that's what triggers the waitlist —
+  // and whether it has ever been published before.
+  const before = existingId
+    ? await prisma.listing.findUnique({
         where: { id: existingId },
-        select: { isPrebook: true },
-      }))?.isPrebook ?? false
-    : false;
+        select: { isPrebook: true, publishedAt: true },
+      })
+    : null;
+  const wasPrebook = before?.isPrebook ?? false;
+
+  // First publish stamps the date; later saves leave it alone.
+  const publishStamp =
+    data.status === "PUBLISHED" && !before?.publishedAt ? { publishedAt: new Date() } : {};
 
   const listing = await prisma.$transaction(async (tx) => {
     const saved = existingId
-      ? await tx.listing.update({ where: { id: existingId }, data: listingData })
-      : await tx.listing.create({ data: listingData });
+      ? await tx.listing.update({
+          where: { id: existingId },
+          data: { ...listingData, ...publishStamp },
+        })
+      : await tx.listing.create({ data: { ...listingData, ...publishStamp } });
 
     await tx.listingPhoto.deleteMany({ where: { listingId: saved.id } });
     if (photoUrls.length > 0) {
@@ -278,9 +287,19 @@ export async function setListingStatusAction(
     throw new Error("Only an admin can publish or archive a listing.");
   }
 
+  // Stamp the publish date the first time it goes live, and only then —
+  // re-publishing after a spell as a draft keeps the original date.
+  const existing = await prisma.listing.findUnique({
+    where: { id: listingId },
+    select: { publishedAt: true },
+  });
+
   const listing = await prisma.listing.update({
     where: { id: listingId },
-    data: { status },
+    data: {
+      status,
+      ...(status === "PUBLISHED" && !existing?.publishedAt ? { publishedAt: new Date() } : {}),
+    },
   });
 
   revalidatePath("/admin/listings");
