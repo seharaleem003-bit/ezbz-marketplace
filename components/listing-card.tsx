@@ -53,7 +53,7 @@ export async function ListingCard({
             alt={photo.altText ?? listing.title}
             fill
             sizes="(min-width: 1024px) 280px, (min-width: 640px) 45vw, 90vw"
-            className="object-cover transition-transform duration-300 group-hover:scale-105"
+            className="object-contain transition-transform duration-300 group-hover:scale-105"
           />
         ) : null}
         {ribbon ? (

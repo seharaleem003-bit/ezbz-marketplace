@@ -75,7 +75,7 @@ export function BundleCard({
       <>
         <div className="relative aspect-square overflow-hidden rounded-lg bg-muted ring-1 ring-foreground/5">
           {photoUrl ? (
-            <Image src={photoUrl} alt={title} fill sizes="160px" className="object-cover" />
+            <Image src={photoUrl} alt={title} fill sizes="160px" className="object-contain" />
           ) : null}
           {tag ? (
             <span className="absolute left-2 top-2 rounded-full bg-navy-900/85 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">

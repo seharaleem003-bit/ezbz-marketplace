@@ -25,7 +25,7 @@ function TileImages({ urls, alt }: { urls: string[]; alt: string }) {
           alt={alt}
           fill
           sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 90vw"
-          className="object-cover transition-transform duration-500 group-hover/tile:scale-105"
+          className="object-contain transition-transform duration-500 group-hover/tile:scale-105"
         />
       </div>
     );

@@ -50,7 +50,7 @@ export function CartItemRow({ item }: { item: CartItemData }) {
             alt={photo.altText ?? item.listing.title}
             fill
             sizes="80px"
-            className="object-cover"
+            className="object-contain"
           />
         ) : null}
       </Link>

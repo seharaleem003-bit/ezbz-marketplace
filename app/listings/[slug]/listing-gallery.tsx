@@ -70,7 +70,7 @@ export function ListingGallery({
           fill
           priority
           sizes="(min-width: 1024px) 50vw, 100vw"
-          className="object-cover"
+          className="object-contain"
         />
 
         {ribbon}
@@ -126,7 +126,7 @@ export function ListingGallery({
                 alt=""
                 fill
                 sizes="(min-width: 1024px) 12vw, 22vw"
-                className="object-cover"
+                className="object-contain"
               />
             </button>
           ))}

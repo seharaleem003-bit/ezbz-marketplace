@@ -64,7 +64,7 @@ export function CrossSellPanel({
                     alt={photo.altText ?? item.title}
                     fill
                     sizes="56px"
-                    className="object-cover"
+                    className="object-contain"
                   />
                 ) : null}
               </Link>

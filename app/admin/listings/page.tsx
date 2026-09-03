@@ -77,7 +77,7 @@ export default async function AdminListingsPage() {
                       alt=""
                       width={44}
                       height={44}
-                      className="size-11 rounded-md object-cover ring-1 ring-foreground/10"
+                      className="size-11 rounded-md object-contain ring-1 ring-foreground/10"
                     />
                   ) : (
                     // A visible placeholder, so a listing with no photo is

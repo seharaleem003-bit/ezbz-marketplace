@@ -78,7 +78,7 @@ function HeroCard({
     <div className="group/card flex flex-col overflow-hidden rounded-xl bg-white/5 ring-1 ring-white/10 transition-colors hover:bg-white/10">
       <Link
         href={`/listings/${slide.slug}`}
-        className="relative aspect-4/3 w-full overflow-hidden bg-navy-800"
+        className="relative aspect-4/3 w-full overflow-hidden bg-white"
       >
         {photo ? (
           <Image
@@ -87,7 +87,7 @@ function HeroCard({
             fill
             priority
             sizes="(min-width: 768px) 33vw, 90vw"
-            className="object-cover transition-transform duration-500 group-hover/card:scale-105"
+            className="object-contain transition-transform duration-500 group-hover/card:scale-105"
           />
         ) : (
           <div className="flex size-full flex-col items-center justify-center gap-2 text-white/40">
@@ -214,7 +214,7 @@ export function HeroBanner({
 
                 <Link
                   href={promo.ctaHref}
-                  className="relative aspect-4/3 w-full overflow-hidden rounded-xl bg-navy-800"
+                  className="relative aspect-4/3 w-full overflow-hidden rounded-xl bg-white"
                 >
                   {promo.photoUrl ? (
                     <Image
@@ -223,7 +223,7 @@ export function HeroBanner({
                       fill
                       priority
                       sizes="(min-width: 768px) 50vw, 100vw"
-                      className="object-cover"
+                      className="object-contain"
                     />
                   ) : null}
                 </Link>

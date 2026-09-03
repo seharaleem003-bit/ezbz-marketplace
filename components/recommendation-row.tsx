@@ -53,7 +53,7 @@ export function RecommendationRow({
                     alt={item.title}
                     fill
                     sizes="176px"
-                    className="object-cover transition-transform duration-300 group-hover/rec:scale-105"
+                    className="object-contain transition-transform duration-300 group-hover/rec:scale-105"
                   />
                 ) : null}
                 {soldOut ? (
