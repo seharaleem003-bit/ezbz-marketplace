@@ -25,6 +25,7 @@ import { ListingHeartButton } from "@/components/listing-heart-button";
 import { ListingShareButton } from "@/components/listing-share-button";
 import { SupportTicketDialog } from "@/components/support-ticket-dialog";
 import { SellerTrustBadges } from "@/components/seller-trust-badges";
+import { StockUrgency } from "@/components/stock-urgency";
 import { AddToCartForm } from "./add-to-cart-form";
 import { BuyNowButton } from "./buy-now-button";
 import { PrebookPanel } from "./prebook-panel";
@@ -334,6 +335,18 @@ export default async function ListingDetailPage({
           />
         ) : (
           <>
+            {/* Directly above the buy buttons: a scarcity notice below the
+                fold, after the description, is telling someone to hurry
+                after they have already decided. */}
+            <StockUrgency
+              quantity={listing.inventoryQty}
+              labels={{
+                outOfStock: dict.listing.outOfStock,
+                onlyLeft: dict.listing.onlyLeft,
+                orderSoon: dict.listing.orderSoon,
+              }}
+            />
+
             <div className="flex gap-3">
               <ChatSellerDialog
                 attachmentsEnabled={isDurableStorageConfigured() || process.env.NODE_ENV !== "production"}
@@ -405,12 +418,6 @@ export default async function ListingDetailPage({
             )}
           </p>
         </div>
-
-        {listing.inventoryQty <= 0 ? (
-          <p className="text-sm text-destructive">Out of stock</p>
-        ) : listing.inventoryQty <= 3 ? (
-          <p className="text-sm text-muted-foreground">Only {listing.inventoryQty} left</p>
-        ) : null}
 
         <p className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
           {listing.description}

@@ -108,7 +108,8 @@
     "bundleThisItem": "This item",
     "bundleTotal": "Bundle total",
     "bundleAddBoth": "Add both to cart",
-    "bundleAdded": "Both added"
+    "bundleAdded": "Both added",
+    "orderSoon": "order soon"
   },
   "share": {
     "copyLink": "Copy link",
