@@ -13,6 +13,7 @@ import { DiscountBadge, calculateDiscount } from "@/components/discount-badge";
 import { ListingGallery } from "./listing-gallery";
 import { RecommendationRow } from "@/components/recommendation-row";
 import { ProductSchema } from "@/components/product-schema";
+import { AppInstallCard } from "@/components/app-install-card";
 import { getSimilarListings, getBoughtTogether } from "@/lib/recommendations";
 import { isDurableStorageConfigured } from "@/lib/storage";
 import { CornerRibbon, ribbonFor } from "@/components/corner-ribbon";
@@ -98,7 +99,10 @@ export default async function ListingDetailPage({
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   const listingUrl = `${appUrl}/listings/${listing.slug}`;
-  const qrCodeDataUrl = await QRCode.toDataURL(listingUrl, {
+  // The code lands on the install page, not on this listing: it's for getting
+  // the app onto a phone, and the shopper already has the product in front of
+  // them.
+  const qrCodeDataUrl = await QRCode.toDataURL(`${appUrl}/install`, {
     margin: 1,
     width: 240,
     color: { dark: "#0a1930", light: "#ffffff" },
@@ -409,33 +413,7 @@ export default async function ListingDetailPage({
 
         <VideoWalkaround videos={listing.videos} />
 
-        <div className="flex items-center justify-between gap-4 rounded-xl border bg-muted/40 p-4">
-          <div>
-            <p className="font-medium">Chat securely on the app</p>
-            <div className="mt-3 flex items-center gap-2">
-              <a
-                href="#"
-                className="flex h-10 items-center gap-2 rounded-lg bg-black px-3 text-white"
-              >
-                <span className="flex flex-col items-start leading-tight">
-                  <span className="text-[10px]">Download on the</span>
-                  <span className="text-sm font-semibold">App Store</span>
-                </span>
-              </a>
-              <a
-                href="#"
-                className="flex h-10 items-center gap-2 rounded-lg bg-black px-3 text-white"
-              >
-                <span className="flex flex-col items-start leading-tight">
-                  <span className="text-[10px]">GET IT ON</span>
-                  <span className="text-sm font-semibold">Google Play</span>
-                </span>
-              </a>
-            </div>
-          </div>
-          {/* eslint-disable-next-line @next/next/no-img-element -- a data: URI, next/image can't optimize it and doesn't need to */}
-          <img src={qrCodeDataUrl} alt="QR code to this listing" className="size-24 shrink-0" />
-        </div>
+        <AppInstallCard qrCodeDataUrl={qrCodeDataUrl} heading={dict.listing.chatSecurely} />
       </div>
     </div>
 
