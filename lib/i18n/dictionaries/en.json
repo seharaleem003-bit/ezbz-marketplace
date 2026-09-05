@@ -104,7 +104,7 @@
     "similarHeading": "Similar items",
     "boughtTogetherHeading": "Frequently bought together",
     "boughtTogetherReal": "Customers who bought this also bought these.",
-    "boughtTogetherSuggested": "Another {category} from the same aisle. No one has bought these together yet.",
+    "boughtTogetherSuggested": "Also in {category}. No one has bought these together yet.",
     "bundleThisItem": "This item",
     "bundleTotal": "Bundle total",
     "bundleAddBoth": "Add both to cart",
