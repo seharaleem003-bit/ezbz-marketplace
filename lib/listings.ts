@@ -85,15 +85,23 @@ export function buildListingWhere(
 
   const q = params.q?.trim();
   if (q) {
-    // Also the SEO keywords written for each listing and the category name —
-    // someone searching "chandelier" should find one whose title only says
-    // "pendant light fixture".
-    where.OR = [
-      { title: { contains: q, mode: "insensitive" } },
-      { description: { contains: q, mode: "insensitive" } },
-      { searchKeywords: { contains: q, mode: "insensitive" } },
-      { category: { name: { contains: q, mode: "insensitive" } } },
-    ];
+    // Each word has to appear somewhere, but not next to each other: as one
+    // contiguous string, "outdoor lights" misses "Outdoor Wall Lights", which
+    // is most of the catalogue. Splitting also makes spacing mistakes work —
+    // "out door" matches because "outdoor" contains both halves.
+    const words = q.split(/\s+/).filter((w) => w.length >= 2).slice(0, 6);
+    const terms = words.length > 0 ? words : [q];
+
+    // Fields cover the SEO keywords written for each listing and its category
+    // name, so "chandelier" finds one whose title only says "pendant light".
+    where.AND = terms.map((term) => ({
+      OR: [
+        { title: { contains: term, mode: "insensitive" as const } },
+        { description: { contains: term, mode: "insensitive" as const } },
+        { searchKeywords: { contains: term, mode: "insensitive" as const } },
+        { category: { name: { contains: term, mode: "insensitive" as const } } },
+      ],
+    }));
   }
 
   if (params.category) {
@@ -182,7 +190,7 @@ export async function getListings(params: ListingSearchParams) {
       LIMIT 120`;
     const nearIds = near.map((r) => r.id);
     if (nearIds.length > 0) {
-      const { OR: _ignored, ...rest } = where;
+      const { AND: _ignored, ...rest } = where;
       const fuzzyWhere: Prisma.ListingWhereInput = { ...rest, id: { in: nearIds } };
       [listings, total] = await Promise.all([
         prisma.listing.findMany({ where: fuzzyWhere, orderBy, skip, take: PAGE_SIZE, include }),
