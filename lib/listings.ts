@@ -201,9 +201,11 @@ export async function getListings(params: ListingSearchParams) {
     sort,
     selectedCategory: selected,
     // Immediate children of the selection — the next drill-down level.
+    // Stocked only, like the filter list — an empty drill-down chip is a
+    // link straight to "no results".
     subcategories: selected
-      ? categories.filter((c) => c.parentId === selected.id)
-      : categories.filter((c) => c.parentId === null),
+      ? stockedCategories.filter((c) => c.parentId === selected.id)
+      : stockedCategories.filter((c) => c.parentId === null),
     breadcrumb: selected ? buildBreadcrumb(categories, selected.id) : [],
   };
 }
