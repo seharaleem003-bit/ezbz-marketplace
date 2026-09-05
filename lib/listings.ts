@@ -171,12 +171,33 @@ export async function getListings(params: ListingSearchParams) {
     ? categories.find((c) => c.slug === params.category) ?? null
     : null;
 
+  // A category with nothing published under it is a dead end — picking it
+  // returns an empty page. The homepage tiles already hide empty departments;
+  // the filter list follows the same rule, at every level.
+  const stocked = await prisma.listing.groupBy({
+    by: ["categoryId"],
+    where: { status: "PUBLISHED" },
+    _count: true,
+  });
+  const direct = new Set(stocked.filter((s) => s._count > 0).map((s) => s.categoryId));
+  const keep = new Set<string>();
+  for (const category of categories) {
+    if (!direct.has(category.id)) continue;
+    // Keep its ancestors too, so the tree the filter renders stays connected.
+    let node: (typeof categories)[number] | undefined = category;
+    while (node && !keep.has(node.id)) {
+      keep.add(node.id);
+      node = categories.find((c) => c.id === node!.parentId);
+    }
+  }
+  const stockedCategories = categories.filter((c) => keep.has(c.id));
+
   return {
     listings,
     total,
     page,
     pageCount: Math.max(1, Math.ceil(total / PAGE_SIZE)),
-    categories,
+    categories: stockedCategories,
     sort,
     selectedCategory: selected,
     // Immediate children of the selection — the next drill-down level.

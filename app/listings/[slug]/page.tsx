@@ -439,11 +439,21 @@ export default async function ListingDetailPage({
           }}
           companion={boughtTogether.item}
           labels={{
-            heading: dict.listing.boughtTogetherHeading,
+            // Only claim "frequently bought together" when order history
+            // actually says so. Otherwise it's a same-aisle suggestion and is
+            // labelled as one — a curb ramp does not "pair naturally" with a
+            // vanity light just because both sat in the same category.
+            heading:
+              boughtTogether.basis === "co-purchase"
+                ? dict.listing.boughtTogetherHeading
+                : dict.listing.boughtTogetherSuggestedHeading,
             subheading:
               boughtTogether.basis === "co-purchase"
                 ? dict.listing.boughtTogetherReal
-                : dict.listing.boughtTogetherSuggested,
+                : dict.listing.boughtTogetherSuggested.replace(
+                    "{category}",
+                    boughtTogether.item.categoryName.toLowerCase()
+                  ),
             thisItem: dict.listing.bundleThisItem,
             total: dict.listing.bundleTotal,
             addBoth: dict.listing.bundleAddBoth,
