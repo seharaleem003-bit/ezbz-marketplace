@@ -30,6 +30,7 @@ export default async function ListingsPage({
     selectedCategory,
     subcategories,
     breadcrumb,
+    didYouMean,
   } = await getListings(params);
 
   /** Keeps the current filters while swapping the category. */
@@ -87,6 +88,14 @@ export default async function ListingsPage({
         <p className="text-sm text-muted-foreground">
           {t(dict.browse.resultsFound, { count: total })}
         </p>
+        {/* Says plainly that the spelling didn't match, rather than silently
+            showing results for something the shopper didn't type. */}
+        {didYouMean ? (
+          <p className="mt-1 text-sm text-muted-foreground">
+            No exact match for <span className="font-medium">&ldquo;{didYouMean}&rdquo;</span> —
+            showing the closest products.
+          </p>
+        ) : null}
       </div>
 
       {/* Drill-down: children of the current category, or the top level when

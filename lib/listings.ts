@@ -85,9 +85,14 @@ export function buildListingWhere(
 
   const q = params.q?.trim();
   if (q) {
+    // Also the SEO keywords written for each listing and the category name —
+    // someone searching "chandelier" should find one whose title only says
+    // "pendant light fixture".
     where.OR = [
       { title: { contains: q, mode: "insensitive" } },
       { description: { contains: q, mode: "insensitive" } },
+      { searchKeywords: { contains: q, mode: "insensitive" } },
+      { category: { name: { contains: q, mode: "insensitive" } } },
     ];
   }
 
@@ -153,19 +158,39 @@ export async function getListings(params: ListingSearchParams) {
   const page = Math.max(1, Math.trunc(Number(params.page)) || 1);
   const skip = (page - 1) * PAGE_SIZE;
 
-  const [listings, total] = await Promise.all([
-    prisma.listing.findMany({
-      where,
-      orderBy,
-      skip,
-      take: PAGE_SIZE,
-      include: {
-        category: true,
-        photos: { orderBy: { sortOrder: "asc" }, take: 1 },
-      },
-    }),
+  const include = {
+    category: true,
+    photos: { orderBy: { sortOrder: "asc" as const }, take: 1 },
+  };
+
+  let [listings, total] = await Promise.all([
+    prisma.listing.findMany({ where, orderBy, skip, take: PAGE_SIZE, include }),
     prisma.listing.count({ where }),
   ]);
+
+  // Typo fallback. Exact matching is the fast path and runs first; only when
+  // it finds nothing does a trigram pass look for near-misses, so "chandiliers"
+  // finds chandeliers instead of showing an empty shop. Every other filter
+  // still applies — this widens the text match, not the search.
+  let didYouMean: string | null = null;
+  const searchTerm = params.q?.trim();
+  if (total === 0 && searchTerm && searchTerm.length >= 3) {
+    const near = await prisma.$queryRaw<{ id: string }[]>`
+      SELECT id FROM "Listing"
+      WHERE status = 'PUBLISHED' AND word_similarity(${searchTerm}, title) > 0.45
+      ORDER BY word_similarity(${searchTerm}, title) DESC
+      LIMIT 120`;
+    const nearIds = near.map((r) => r.id);
+    if (nearIds.length > 0) {
+      const { OR: _ignored, ...rest } = where;
+      const fuzzyWhere: Prisma.ListingWhereInput = { ...rest, id: { in: nearIds } };
+      [listings, total] = await Promise.all([
+        prisma.listing.findMany({ where: fuzzyWhere, orderBy, skip, take: PAGE_SIZE, include }),
+        prisma.listing.count({ where: fuzzyWhere }),
+      ]);
+      if (total > 0) didYouMean = searchTerm;
+    }
+  }
 
   const selected = params.category
     ? categories.find((c) => c.slug === params.category) ?? null
@@ -197,6 +222,8 @@ export async function getListings(params: ListingSearchParams) {
     total,
     page,
     pageCount: Math.max(1, Math.ceil(total / PAGE_SIZE)),
+    /** Set when results came from the typo fallback rather than an exact match. */
+    didYouMean,
     categories: stockedCategories,
     sort,
     selectedCategory: selected,

@@ -17,15 +17,20 @@ const ROTATE_MS = 6000;
 function TileImages({ urls, alt }: { urls: string[]; alt: string }) {
   if (urls.length === 0) return null;
 
+  // White panels, not a translucent tint over the tile colour: these are
+  // catalogue shots on white backgrounds, so a gold or lime wash behind them
+  // leaves the product sitting in a dirty halo. Padding keeps the product off
+  // the panel edge, and object-contain shows all of it — cropping a product
+  // photo to fill a square is what cut the tops off lamps and bowls.
   if (urls.length === 1) {
     return (
-      <div className="relative mt-3 aspect-4/3 w-full overflow-hidden rounded-lg bg-black/10">
+      <div className="relative mt-3 aspect-4/3 w-full overflow-hidden rounded-lg bg-white">
         <Image
           src={urls[0]}
           alt={alt}
           fill
           sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 90vw"
-          className="object-contain transition-transform duration-500 group-hover/tile:scale-105"
+          className="object-contain p-2 transition-transform duration-500 group-hover/tile:scale-105"
         />
       </div>
     );
@@ -34,13 +39,13 @@ function TileImages({ urls, alt }: { urls: string[]; alt: string }) {
   return (
     <div className="mt-3 grid aspect-4/3 w-full grid-cols-2 gap-1.5">
       {urls.slice(0, 4).map((url, i) => (
-        <div key={i} className="relative overflow-hidden rounded-md bg-black/10">
+        <div key={i} className="relative overflow-hidden rounded-md bg-white">
           <Image
             src={url}
             alt=""
             fill
             sizes="(min-width: 1024px) 12vw, 45vw"
-            className="object-cover transition-transform duration-500 group-hover/tile:scale-105"
+            className="object-contain p-1.5 transition-transform duration-500 group-hover/tile:scale-105"
           />
         </div>
       ))}

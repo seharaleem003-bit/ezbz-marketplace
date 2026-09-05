@@ -46,7 +46,7 @@ export function RecommendationRow({
               href={`/listings/${item.slug}`}
               className="group/rec w-44 shrink-0"
             >
-              <div className="relative aspect-square overflow-hidden rounded-lg bg-muted ring-1 ring-foreground/5">
+              <div className="relative aspect-square overflow-hidden rounded-lg bg-white ring-1 ring-foreground/5">
                 {item.photoUrl ? (
                   <Image
                     src={item.photoUrl}

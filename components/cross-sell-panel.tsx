@@ -56,7 +56,7 @@ export function CrossSellPanel({
             <li key={item.id} className="flex items-center gap-3">
               <Link
                 href={`/listings/${item.slug}`}
-                className="relative size-14 shrink-0 overflow-hidden rounded-lg bg-muted"
+                className="relative size-14 shrink-0 overflow-hidden rounded-lg bg-white ring-1 ring-foreground/10"
               >
                 {photo ? (
                   <Image

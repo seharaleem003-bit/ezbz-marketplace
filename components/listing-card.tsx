@@ -51,7 +51,7 @@ export async function ListingCard({
     // interactive elements), so the wrapper is a plain div and the link
     // covers the card via an inset overlay.
     <div className="group relative flex flex-col overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10 transition-shadow hover:shadow-lg">
-      <div className="relative aspect-4/3 w-full overflow-hidden bg-muted">
+      <div className="relative aspect-4/3 w-full overflow-hidden bg-white">
         {photo ? (
           <Image
             src={photo.url}

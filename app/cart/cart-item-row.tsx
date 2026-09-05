@@ -42,7 +42,7 @@ export function CartItemRow({ item }: { item: CartItemData }) {
     <div className="flex items-center gap-4 border-b py-4 last:border-b-0">
       <Link
         href={`/listings/${item.listing.slug}`}
-        className="relative size-20 shrink-0 overflow-hidden rounded-lg bg-muted"
+        className="relative size-20 shrink-0 overflow-hidden rounded-lg bg-white ring-1 ring-foreground/10"
       >
         {photo ? (
           <Image

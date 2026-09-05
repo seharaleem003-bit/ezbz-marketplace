@@ -52,7 +52,7 @@ export function ListingGallery({
   return (
     <div className="flex flex-col gap-3">
       <div
-        className="relative aspect-4/3 select-none overflow-hidden rounded-xl bg-muted"
+        className="relative aspect-4/3 select-none overflow-hidden rounded-xl bg-white"
         onTouchStart={(e) => setTouchStartX(e.changedTouches[0].clientX)}
         onTouchEnd={(e) => onTouchEnd(e.changedTouches[0].clientX)}
         onKeyDown={(e) => {
