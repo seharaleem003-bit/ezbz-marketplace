@@ -63,17 +63,38 @@ export async function SiteHeader() {
         )
       : false);
 
-  // Full tree for the department menu — top-level entries with their children.
-  const allCategories = await prisma.category.findMany({
-    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-    select: { id: true, slug: true, name: true, parentId: true },
-  });
+  // Tree for the department menu. Categories with nothing published under
+  // them are left out: every entry here is a promise that there is something
+  // to look at, and "Cat food" leading to an empty page breaks that.
+  const [allCategories, stocked] = await Promise.all([
+    prisma.category.findMany({
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+      select: { id: true, slug: true, name: true, parentId: true },
+    }),
+    prisma.listing.groupBy({
+      by: ["categoryId"],
+      where: { status: "PUBLISHED" },
+      _count: true,
+    }),
+  ]);
+
+  const direct = new Set(stocked.filter((s) => s._count > 0).map((s) => s.categoryId));
+  const inStock = new Set<string>();
+  for (const category of allCategories) {
+    if (!direct.has(category.id)) continue;
+    let node: (typeof allCategories)[number] | undefined = category;
+    while (node && !inStock.has(node.id)) {
+      inStock.add(node.id);
+      node = allCategories.find((c) => c.id === node!.parentId);
+    }
+  }
+
   const departments = allCategories
-    .filter((c) => c.parentId === null)
+    .filter((c) => c.parentId === null && inStock.has(c.id))
     .map((parent) => ({
       ...parent,
       children: allCategories
-        .filter((c) => c.parentId === parent.id)
+        .filter((c) => c.parentId === parent.id && inStock.has(c.id))
         .map(({ id, slug, name }) => ({ id, slug, name })),
     }));
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
