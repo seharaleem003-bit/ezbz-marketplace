@@ -11,6 +11,17 @@ const nextConfig: NextConfig = {
   htmlLimitedBots: /.*/,
 
   images: {
+    // Vercel's image optimizer is billed per transformation and this account
+    // has exhausted its allowance: /_next/image now answers 402
+    // (OPTIMIZED_IMAGE_REQUEST_PAYMENT_REQUIRED), so every photo that wasn't
+    // already cached renders as a broken icon. A catalogue of ~670 photos at
+    // several widths each will keep exceeding it.
+    //
+    // Serving the originals costs nothing and puts the pictures back. They are
+    // supplier shots already sized for the web (~100KB), so the loss is
+    // WebP/AVIF conversion and per-breakpoint resizing, not correctness.
+    // Remove this line to re-enable optimization once the plan allows it.
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: "https",
