@@ -41,6 +41,33 @@ const CATEGORY_LABEL_KEYS: Record<string, "pet" | "home" | "mobility" | "electro
   electronics: "electronics",
 };
 
+/**
+ * The storefront search box.
+ *
+ * A plain GET form, so it works before hydration and on a slow phone. One
+ * text input means Enter submits it without a button, and enterKeyHint turns
+ * the phone keyboard's return key into "Search" so there is something obvious
+ * to press.
+ */
+function SearchField({ placeholder, label }: { placeholder: string; label: string }) {
+  return (
+    <form action="/listings" role="search" className="flex w-full min-w-0 items-center">
+      <div className="relative w-full">
+        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <input
+          type="search"
+          name="q"
+          enterKeyHint="search"
+          autoComplete="off"
+          placeholder={placeholder}
+          aria-label={label}
+          className="h-10 w-full rounded-full border border-border bg-muted/50 pl-9 pr-3 text-base outline-none focus:border-gold-500 focus:bg-background sm:text-sm"
+        />
+      </div>
+    </form>
+  );
+}
+
 export async function SiteHeader() {
   const [session, cartCount, locale] = await Promise.all([
     auth(),
@@ -112,7 +139,9 @@ export async function SiteHeader() {
     // something nearby animates a transform (the hero carousel), leaving a
     // ghost of the previous frame painted behind the page.
     <header className="sticky top-0 z-40 isolate transform-gpu border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80">
-      <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4">
+      {/* h-16 only from sm up: on phones the row sizes to its contents so the
+          search row below it isn't pushed off the sticky header. */}
+      <div className="mx-auto flex min-h-16 max-w-6xl items-center gap-3 px-4 py-2 sm:gap-4 sm:py-0">
         <Link href="/" aria-label={dict.header.home} className="shrink-0">
           <Image
             src="/logo.png"
@@ -124,18 +153,16 @@ export async function SiteHeader() {
           />
         </Link>
 
-        <form action="/listings" className="flex min-w-0 flex-1 items-center">
-          <div className="relative w-full">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              type="search"
-              name="q"
-              placeholder={dict.header.searchPlaceholder}
-              aria-label={dict.header.searchLabel}
-              className="h-10 w-full rounded-full border border-border bg-muted/50 pl-9 pr-3 text-sm outline-none focus:border-gold-500 focus:bg-background"
-            />
-          </div>
-        </form>
+        {/* Phones get the search bar on its own row below — see after this
+            div. Sharing one row with the logo and the icons squeezed it to a
+            sliver that the app button then overlapped, so it couldn't be
+            typed into at all. */}
+        <div className="hidden min-w-0 flex-1 sm:flex">
+          <SearchField
+            placeholder={dict.header.searchPlaceholder}
+            label={dict.header.searchLabel}
+          />
+        </div>
 
         <div className="flex shrink-0 items-center gap-2">
           {canSell ? (
@@ -163,11 +190,19 @@ export async function SiteHeader() {
               </span>
             </Button>
           )}
-          <GetAppDialog qrCodeDataUrl={qrCodeDataUrl} label={dict.header.getTheApp} />
-          <LanguageSwitcher current={locale} label={dict.header.language} />
+          {/* Both hidden on phones: the row cannot hold them and still fit the
+              account control, which was being pushed off the screen edge. The
+              app offer stays reachable from the promo banner and the footer. */}
+          <span className="hidden sm:inline-flex">
+            <GetAppDialog qrCodeDataUrl={qrCodeDataUrl} label={dict.header.getTheApp} />
+          </span>
+          <span className="hidden sm:inline-flex">
+            <LanguageSwitcher current={locale} label={dict.header.language} />
+          </span>
           <Button
             variant="ghost"
             size="icon"
+            className="hidden sm:inline-flex"
             render={<Link href="/wishlist" aria-label={dict.header.wishlist} />}
           >
             <Heart />
@@ -195,6 +230,14 @@ export async function SiteHeader() {
             <AuthDialog />
           )}
         </div>
+      </div>
+
+      {/* Phone-only search row, full width so it can actually be typed into. */}
+      <div className="px-4 pb-2 sm:hidden">
+        <SearchField
+          placeholder={dict.header.searchPlaceholder}
+          label={dict.header.searchLabel}
+        />
       </div>
 
       {/* Department bar. Navy so it reads as part of the header rather than
