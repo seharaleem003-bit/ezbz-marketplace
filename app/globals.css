@@ -161,33 +161,42 @@
 .animate-marquee {
   animation: marquee 22s linear infinite;
 }
+
 /* App launch screen.
  *
- * Present in the server-rendered HTML and hidden by default, so it costs a
- * browser visit nothing. The beforeInteractive script in components/
- * app-splash.tsx sets data-splash="on" for the installed app only, which
- * makes it visible in the first paint — ahead of the page, which is the whole
- * point of a launch screen.
+ * Driven by CSS alone. `display-mode: standalone` matches only the installed
+ * app, so a browser visit never sees this, and because it is a stylesheet
+ * rule it takes effect on the first paint — no JavaScript, so nothing can
+ * arrive after the page has already drawn. Two earlier JS-based versions
+ * failed exactly that way.
  *
- * The lift is a CSS animation rather than a timer in React: it must not
- * depend on hydration, or a slow start would leave the shopper staring at the
- * logo. visibility collapses at the end so it cannot swallow taps.
+ * The lift is an animation rather than a timer for the same reason: it must
+ * not depend on hydration, or a slow start would strand the shopper on the
+ * logo. Visibility collapses at the end so a finished splash cannot swallow
+ * taps.
  */
 #ezbz-splash {
-  display: none;
-}
-
-html[data-splash="on"] #ezbz-splash {
   position: fixed;
   inset: 0;
   z-index: 100;
-  display: flex;
+  display: none;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 1.25rem;
   background: var(--navy-900);
-  animation: ezbz-splash-out 380ms ease-out 1000ms forwards;
+  animation: ezbz-splash-out 400ms ease-out 3000ms forwards;
+}
+
+@media (display-mode: standalone) {
+  #ezbz-splash {
+    display: flex;
+  }
+}
+
+/* Safari before 15.4, where the media query above does not exist. */
+html[data-splash="on"] #ezbz-splash {
+  display: flex;
 }
 
 @keyframes ezbz-splash-out {
@@ -197,11 +206,11 @@ html[data-splash="on"] #ezbz-splash {
   }
 }
 
-/* Someone who has asked for less motion still gets the screen, it just cuts
-   rather than fades. */
+/* Someone who has asked for less motion still gets the screen and the same
+   hold; it just cuts instead of fading. */
 @media (prefers-reduced-motion: reduce) {
-  html[data-splash="on"] #ezbz-splash {
+  #ezbz-splash {
     animation-duration: 1ms;
-    animation-delay: 1000ms;
+    animation-delay: 3000ms;
   }
 }

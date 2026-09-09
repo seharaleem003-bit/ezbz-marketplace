@@ -7,7 +7,9 @@
  * assets only, and always goes to the network for everything else.
  */
 
-const CACHE = "ezbz-v1";
+// Bump on any change to a PRECACHE asset. Those are served cache-first, so
+// without a new name an installed app keeps the old logo and icons forever.
+const CACHE = "ezbz-v2";
 const OFFLINE_URL = "/offline";
 
 const PRECACHE = [OFFLINE_URL, "/icon-192.png", "/icon-512.png", "/logo.png"];

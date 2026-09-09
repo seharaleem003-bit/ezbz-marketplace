@@ -1,19 +1,19 @@
 import Image from "next/image";
-import Script from "next/script";
 
 /**
  * Brand screen shown while the installed app starts.
  *
- * Deliberately NOT a client component. An earlier version showed itself from
- * a useEffect, which meant it could only appear once React had hydrated — so
- * the app opened on a half-rendered page and the logo arrived afterwards,
- * exactly backwards. This version is in the server-rendered HTML and is
- * switched on by a beforeInteractive script, so it is painted in the first
- * frame, before any of the page is visible.
+ * Shown and hidden entirely by CSS — see the #ezbz-splash rules in
+ * globals.css. `@media (display-mode: standalone)` is true only for the
+ * installed app, so the browser never sees this, and because it is a
+ * stylesheet rule it applies to the very first paint.
  *
- * The fade is pure CSS (see globals.css). Nothing here depends on React
- * running at all: if hydration failed entirely the splash would still lift on
- * schedule rather than trapping the shopper behind it.
+ * Two earlier attempts got this wrong, both by depending on JavaScript:
+ * a useEffect could only run after hydration, and next/script's
+ * beforeInteractive does not emit an executable tag in the App Router — it
+ * queues the source into `self.__next_s` for the Next runtime to evaluate,
+ * which is also after the page has painted. Either way the app opened on the
+ * page and the logo arrived late. CSS has no such ordering problem.
  *
  * iOS covers this same moment with the launch images declared in
  * app/layout.tsx. This carries Android, whose system splash can only show the
@@ -21,24 +21,18 @@ import Script from "next/script";
  * get nothing.
  */
 
-// Runs before any Next.js module, so it is kept tiny and defensive — a throw
-// here would happen before the app had a chance to load.
-const TOGGLE = `(function(){try{
-var s=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
-if(!s)return;
-try{if(sessionStorage.getItem('ezbz.splash')==='1')return;sessionStorage.setItem('ezbz.splash','1');}catch(e){}
-document.documentElement.setAttribute('data-splash','on');
-}catch(e){}})();`;
+// Safari before 15.4 has no display-mode media query; navigator.standalone is
+// the old equivalent. A plain inline tag, deliberately not next/script, so the
+// HTML parser runs it where it sits rather than the framework running it later.
+const LEGACY_IOS = `try{if(window.navigator.standalone===true){document.documentElement.setAttribute('data-splash','on')}}catch(e){}`;
 
 export function AppSplash() {
   return (
     <>
-      <Script id="ezbz-splash-toggle" strategy="beforeInteractive">
-        {TOGGLE}
-      </Script>
+      <script dangerouslySetInnerHTML={{ __html: LEGACY_IOS }} />
 
-      {/* Hidden by default; the script above opts the installed app in, so a
-          browser visit never sees it. */}
+      {/* Hidden unless the CSS says otherwise, so a browser visit never sees
+          it. */}
       <div id="ezbz-splash" aria-hidden>
         <Image
           src="/logo-light.png"
