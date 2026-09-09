@@ -14,9 +14,12 @@ import { useInstall, IosSteps } from "@/components/install-prompt";
 export function GetAppDialog({
   qrCodeDataUrl,
   label,
+  /** Shorter wording for narrow screens; falls back to `label`. */
+  shortLabel,
 }: {
   qrCodeDataUrl: string;
   label: string;
+  shortLabel?: string;
 }) {
   const { canInstall, installed, isIos, install } = useInstall();
 
@@ -26,11 +29,15 @@ export function GetAppDialog({
         render={
           <Button
             size="sm"
-            className="rounded-full bg-gold-500 text-navy-900 hover:bg-gold-400"
+            className="rounded-full bg-gold-500 px-3 text-navy-900 hover:bg-gold-400 sm:px-4"
           />
         }
       >
-        {label}
+        <Download className="size-4 sm:hidden" />
+        {/* A phone header cannot hold "Get the app" beside everything else, so
+            it shortens rather than disappearing. */}
+        <span className="sm:hidden">{shortLabel ?? label}</span>
+        <span className="hidden sm:inline">{label}</span>
       </DialogTrigger>
       <DialogContent className="sm:max-w-sm">
         <DialogTitle className="text-center text-xl">

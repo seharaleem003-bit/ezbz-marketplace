@@ -190,12 +190,15 @@ export async function SiteHeader() {
               </span>
             </Button>
           )}
-          {/* Both hidden on phones: the row cannot hold them and still fit the
-              account control, which was being pushed off the screen edge. The
-              app offer stays reachable from the promo banner and the footer. */}
-          <span className="hidden sm:inline-flex">
-            <GetAppDialog qrCodeDataUrl={qrCodeDataUrl} label={dict.header.getTheApp} />
-          </span>
+          {/* Shown at every size — it shortens to "App" on phones rather than
+              dropping out, since it is the main install prompt. */}
+          <GetAppDialog
+            qrCodeDataUrl={qrCodeDataUrl}
+            label={dict.header.getTheApp}
+            shortLabel={dict.header.getTheAppShort}
+          />
+          {/* These two do drop on phones: the row has no space left, and both
+              are reachable from the footer. */}
           <span className="hidden sm:inline-flex">
             <LanguageSwitcher current={locale} label={dict.header.language} />
           </span>
@@ -287,6 +290,30 @@ export async function SiteHeader() {
           >
             {dict.header.freeShippingNote}
           </Link>
+
+          {/* Start selling lives here on phones. The white row above is full,
+              but this bar has the space, and burying the seller entry point
+              in the footer hides it from exactly the people it is for. */}
+          {canSell ? (
+            <Link
+              href="/sell"
+              className="ml-auto flex items-center gap-1.5 rounded-md px-2 py-1 text-sm font-semibold text-gold-400 hover:text-gold-300 sm:hidden"
+            >
+              <Store className="size-4" />
+              {dict.header.startSelling}
+            </Link>
+          ) : (
+            <span
+              title={dict.header.sellingComingSoonHint}
+              className="ml-auto flex items-center gap-1.5 px-2 py-1 text-sm font-medium text-white/60 sm:hidden"
+            >
+              <Store className="size-4" />
+              {dict.header.startSelling}
+              <span className="rounded-full bg-gold-500 px-1.5 py-0.5 text-[10px] font-bold uppercase leading-none tracking-wide text-navy-900">
+                {dict.header.comingSoon}
+              </span>
+            </span>
+          )}
         </div>
       </nav>
     </header>
