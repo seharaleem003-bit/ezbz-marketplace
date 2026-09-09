@@ -2,9 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import QRCode from "qrcode";
 import type { Metadata } from "next";
-import { Flag, Heart, Share2 } from "lucide-react";
+import { ChevronRight, Flag, Heart, Share2 } from "lucide-react";
 
-import { getListingBySlug } from "@/lib/listings";
+import { getListingBySlug, buildBreadcrumb, type CategoryNode } from "@/lib/listings";
 import { formatCents, formatCondition, formatJoinedDate } from "@/lib/format";
 import { getOptionalSession } from "@/lib/auth/dal";
 import { getDictionary, getLocale, t } from "@/lib/i18n";
@@ -26,6 +26,7 @@ import { ListingShareButton } from "@/components/listing-share-button";
 import { SupportTicketDialog } from "@/components/support-ticket-dialog";
 import { SellerTrustBadges } from "@/components/seller-trust-badges";
 import { StockUrgency } from "@/components/stock-urgency";
+import { BackToResults } from "@/components/back-to-results";
 import { AddToCartForm } from "./add-to-cart-form";
 import { BuyNowButton } from "./buy-now-button";
 import { PrebookPanel } from "./prebook-panel";
@@ -126,7 +127,7 @@ export default async function ListingDetailPage({
     : "";
   const inStock = listing.inventoryQty > 0;
 
-  const [similar, boughtTogether] = await Promise.all([
+  const [similar, boughtTogether, categoryTree] = await Promise.all([
     getSimilarListings({
       listingId: listing.id,
       categoryId: listing.categoryId,
@@ -137,7 +138,11 @@ export default async function ListingDetailPage({
       categoryId: listing.categoryId,
       priceCents: listing.priceCents,
     }),
+    prisma.category.findMany({
+      select: { id: true, slug: true, name: true, parentId: true, sortOrder: true },
+    }) as Promise<CategoryNode[]>,
   ]);
+  const breadcrumb = buildBreadcrumb(categoryTree, listing.categoryId);
   const recLabels = {
     off: dict.listing.off,
     vsAmazon: dict.listing.vsAmazon,
@@ -179,6 +184,29 @@ export default async function ListingDetailPage({
           .
         </div>
       ) : null}
+
+      {/* Back to where the shopper came from, plus the trail that got them
+          here. Without this the only way out of a product page was the
+          browser's own back button or starting the category again. */}
+      <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1">
+        <BackToResults
+          categoryHref={`/listings?category=${listing.category.slug}`}
+          categoryName={listing.category.name}
+        />
+        {breadcrumb.length > 0 ? (
+          <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-1 text-sm text-muted-foreground">
+            <span aria-hidden className="text-muted-foreground/50">|</span>
+            {breadcrumb.map((crumb, i) => (
+              <span key={crumb.id} className="flex items-center gap-1">
+                {i > 0 ? <ChevronRight aria-hidden className="size-3.5 opacity-50" /> : null}
+                <Link href={`/listings?category=${crumb.slug}`} className="hover:text-foreground hover:underline">
+                  {crumb.name}
+                </Link>
+              </span>
+            ))}
+          </nav>
+        ) : null}
+      </div>
 
       <div className="grid gap-8 lg:grid-cols-2">
       <ListingGallery

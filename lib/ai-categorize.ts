@@ -97,10 +97,13 @@ const BATCH_SIZE = 25;
 export async function categorizeProducts({
   products,
   categoryPaths,
+  parentPaths = [],
 }: {
   products: { rowNumber: number; title: string; description?: string }[];
-  /** Existing tree as "slug — Parent > Child" lines. */
+  /** Assignable (leaf) categories as "slug — Parent > Child" lines. */
   categoryPaths: { slug: string; path: string }[];
+  /** Containers — valid parents for a new category, never a destination. */
+  parentPaths?: { slug: string; path: string }[];
 }): Promise<CategorySuggestion[]> {
   const anthropic = getClient();
   const out: CategorySuggestion[] = [];
@@ -119,8 +122,16 @@ export async function categorizeProducts({
           content: [
             "File each product below into the catalogue of EZBZ, a discount marketplace.",
             "",
-            "Existing categories (slug — full path):",
+            "Categories you may file into (slug — full path):",
             ...categoryPaths.map((c) => `  ${c.slug} — ${c.path}`),
+            ...(parentPaths.length > 0
+              ? [
+                  "",
+                  "These are containers. NEVER file a product into one — they are",
+                  "only valid values for newCategoryParentSlug:",
+                  ...parentPaths.map((c) => `  ${c.slug} — ${c.path}`),
+                ]
+              : []),
             "",
             "Rules:",
             "1. Prefer the most specific existing category that genuinely fits.",

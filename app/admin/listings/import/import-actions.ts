@@ -35,19 +35,31 @@ function slugify(value: string, max = 70) {
 }
 
 /** Full "Parent > Child" path for every category, for the model to choose from. */
-function buildPaths(tree: CategoryNode[]) {
+/**
+ * Category paths for the model to choose from.
+ *
+ * Only leaves are offered. A category that has children is a container — a
+ * product filed on "Lighting" rather than "Ceiling fans" is invisible to the
+ * shopper browsing lighting sub-aisles, and it poisons "similar items", which
+ * looks for things in the same category. Offering parents as choices is how
+ * 34 listings ended up parked on them.
+ */
+function buildPaths(tree: CategoryNode[], leavesOnly = true) {
   const byId = new Map(tree.map((c) => [c.id, c]));
-  return tree.map((c) => {
-    const parts = [c.name];
-    let parentId = c.parentId;
-    while (parentId) {
-      const parent = byId.get(parentId);
-      if (!parent) break;
-      parts.unshift(parent.name);
-      parentId = parent.parentId;
-    }
-    return { slug: c.slug, path: parts.join(" > ") };
-  });
+  const hasChildren = new Set(tree.filter((c) => c.parentId).map((c) => c.parentId));
+  return tree
+    .filter((c) => (leavesOnly ? !hasChildren.has(c.id) : hasChildren.has(c.id)))
+    .map((c) => {
+      const parts = [c.name];
+      let parentId = c.parentId;
+      while (parentId) {
+        const parent = byId.get(parentId);
+        if (!parent) break;
+        parts.unshift(parent.name);
+        parentId = parent.parentId;
+      }
+      return { slug: c.slug, path: parts.join(" > ") };
+    });
 }
 
 export async function importCatalogAction(
@@ -104,6 +116,7 @@ export async function importCatalogAction(
         description: r.description,
       })),
       categoryPaths: buildPaths(tree),
+      parentPaths: buildPaths(tree, false),
     });
   } catch (e) {
     console.error("Categorisation failed", e);
