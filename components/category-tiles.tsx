@@ -108,11 +108,12 @@ export async function CategoryTiles() {
               {/* Label in its own band, so legibility never depends on what the
                   photo happens to look like underneath. */}
               <div className="flex items-center justify-between gap-2 bg-navy-900 px-4 py-3 text-white">
+                {/* No listing count. It advertises how thin a department is
+                    ("4 listings found") and it is not what a shopper is
+                    deciding on — the count is still used to order the tiles
+                    and to drop empty departments. */}
                 <div className="min-w-0">
                   <p className="truncate font-heading text-base font-semibold sm:text-lg">{label}</p>
-                  <p className="mt-0.5 text-xs text-white/75">
-                    {dict.browse.resultsFound.replace("{count}", String(dept.count))}
-                  </p>
                 </div>
                 <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-white/15 transition-colors group-hover:bg-gold-500 group-hover:text-navy-900">
                   <ArrowRight className="size-4" />

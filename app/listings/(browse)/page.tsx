@@ -85,9 +85,14 @@ export default async function ListingsPage({
         <h1 className="text-2xl font-heading font-semibold">
           {selectedCategory ? selectedCategory.name : dict.browse.title}
         </h1>
-        <p className="text-sm text-muted-foreground">
-          {t(dict.browse.resultsFound, { count: total })}
-        </p>
+        {/* Counted only for a search, where the number answers "did that find
+            anything?". Browsing a category, it just advertises how small the
+            department is, which is nobody's reason for being there. */}
+        {params.q?.trim() ? (
+          <p className="text-sm text-muted-foreground">
+            {t(dict.browse.resultsFound, { count: total })}
+          </p>
+        ) : null}
         {/* Says plainly that the spelling didn't match, rather than silently
             showing results for something the shopper didn't type. */}
         {didYouMean ? (
