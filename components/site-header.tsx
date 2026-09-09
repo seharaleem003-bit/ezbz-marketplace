@@ -142,15 +142,29 @@ export async function SiteHeader() {
       {/* h-16 only from sm up: on phones the row sizes to its contents so the
           search row below it isn't pushed off the sticky header. */}
       <div className="mx-auto flex min-h-16 max-w-6xl items-center gap-3 px-4 py-2 sm:gap-4 sm:py-0">
-        <Link href="/" aria-label={dict.header.home} className="shrink-0">
+        {/* The full lockup, matching the app icon and launch screen. MALL is
+            set as text rather than baked into the image so it stays crisp at
+            any size and keeps its own colour. */}
+        <Link
+          href="/"
+          aria-label={dict.header.home}
+          className="flex shrink-0 flex-col items-stretch"
+        >
           <Image
             src="/logo.png"
-            alt="EZBZ"
+            alt="EZBZ MALL"
             width={1378}
             height={554}
             priority
-            className="h-8 w-auto"
+            className="h-7 w-auto sm:h-8"
           />
+          <span className="mt-0.5 flex items-center gap-1.5">
+            <span className="h-px flex-1 bg-gold-500/50" />
+            <span className="text-[9px] font-bold leading-none tracking-[0.3em] text-gold-600 sm:text-[10px]">
+              MALL
+            </span>
+            <span className="h-px flex-1 bg-gold-500/50" />
+          </span>
         </Link>
 
         {/* Phones get the search bar on its own row below — see after this
