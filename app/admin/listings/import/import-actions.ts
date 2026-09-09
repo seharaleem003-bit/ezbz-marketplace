@@ -9,6 +9,7 @@ import { categorizeProducts, isAiCategorizeConfigured } from "@/lib/ai-categoriz
 import { type CategoryNode } from "@/lib/listings";
 import { computeDealScore } from "@/lib/deal-score";
 import { putFile } from "@/lib/storage";
+import { optimizeProductImage } from "@/lib/image-optimize";
 
 export interface ImportReport {
   imported: number;
@@ -180,10 +181,11 @@ export async function importCatalogAction(
     if (photoUrls.length === 0 && row.embeddedImages.length > 0) {
       for (const img of row.embeddedImages) {
         try {
+          const optimized = await optimizeProductImage(img.buffer, img.filename, img.contentType);
           const stored = await putFile({
-            buffer: img.buffer,
-            filename: img.filename,
-            contentType: img.contentType,
+            buffer: optimized.buffer,
+            filename: optimized.filename,
+            contentType: optimized.contentType,
             prefix: "listings",
           });
           photoUrls.push(stored.url);

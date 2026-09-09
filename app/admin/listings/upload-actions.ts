@@ -2,6 +2,7 @@
 
 import { requireCatalogAccess } from "@/lib/auth/dal";
 import { putFile } from "@/lib/storage";
+import { optimizeProductImage } from "@/lib/image-optimize";
 
 export type UploadPhotosState = { urls?: string[]; error?: string };
 
@@ -39,10 +40,17 @@ export async function uploadListingPhotosAction(formData: FormData): Promise<Upl
   const urls: string[] = [];
   try {
     for (const file of files) {
+      // Resized before storing: image optimization is off at request time, so
+      // whatever lands here is exactly what every shopper downloads.
+      const optimized = await optimizeProductImage(
+        Buffer.from(await file.arrayBuffer()),
+        file.name,
+        file.type
+      );
       const stored = await putFile({
-        buffer: Buffer.from(await file.arrayBuffer()),
-        filename: file.name,
-        contentType: file.type,
+        buffer: optimized.buffer,
+        filename: optimized.filename,
+        contentType: optimized.contentType,
         prefix: "listings",
       });
       urls.push(stored.url);
