@@ -73,6 +73,10 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
+        {/* First in the body so the installed app paints the logo before any
+            of the page — a launch screen that arrives after the content is
+            worse than none. */}
+        <AppSplash />
         <PromoBanner />
         <SiteHeader />
         <main className="flex flex-1 flex-col">{children}</main>
@@ -85,8 +89,6 @@ export default function RootLayout({
         </Suspense>
         <Toaster />
         <ServiceWorkerRegistrar />
-        {/* Last, so the page beneath is already rendered when it lifts. */}
-        <AppSplash />
       </body>
     </html>
   );

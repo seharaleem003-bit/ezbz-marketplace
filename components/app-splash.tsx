@@ -1,86 +1,61 @@
-"use client";
-
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import Script from "next/script";
 
 /**
  * Brand screen shown while the installed app starts.
  *
- * iOS covers this itself with the images in app/layout.tsx, but Android
- * derives its splash from the manifest icon and cannot show the wordmark, and
- * a desktop install gets nothing at all. This fills both gaps with the same
- * lockup, so the app opens the same way everywhere.
+ * Deliberately NOT a client component. An earlier version showed itself from
+ * a useEffect, which meant it could only appear once React had hydrated — so
+ * the app opened on a half-rendered page and the logo arrived afterwards,
+ * exactly backwards. This version is in the server-rendered HTML and is
+ * switched on by a beforeInteractive script, so it is painted in the first
+ * frame, before any of the page is visible.
  *
- * Deliberately narrow:
- * - Installed app only. On the website a splash is an obstacle between a
- *   shopper and the page they asked for.
- * - Once per launch, not per navigation, tracked in sessionStorage.
- * - Purely decorative and non-blocking: it sits above the page, which has
- *   already rendered underneath, and removes itself on a timer. If the
- *   timer never ran the page is still fully usable behind it, so it also
- *   fades on the first tap.
+ * The fade is pure CSS (see globals.css). Nothing here depends on React
+ * running at all: if hydration failed entirely the splash would still lift on
+ * schedule rather than trapping the shopper behind it.
+ *
+ * iOS covers this same moment with the launch images declared in
+ * app/layout.tsx. This carries Android, whose system splash can only show the
+ * manifest icon and not the wordmark, and desktop installs, which otherwise
+ * get nothing.
  */
 
-const SEEN_KEY = "ezbz.splash.shown";
-const HOLD_MS = 1100;
-const FADE_MS = 420;
+// Runs before any Next.js module, so it is kept tiny and defensive — a throw
+// here would happen before the app had a chance to load.
+const TOGGLE = `(function(){try{
+var s=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
+if(!s)return;
+try{if(sessionStorage.getItem('ezbz.splash')==='1')return;sessionStorage.setItem('ezbz.splash','1');}catch(e){}
+document.documentElement.setAttribute('data-splash','on');
+}catch(e){}})();`;
 
 export function AppSplash() {
-  const [state, setState] = useState<"hidden" | "visible" | "fading">("hidden");
-
-  useEffect(() => {
-    const standalone =
-      window.matchMedia("(display-mode: standalone)").matches ||
-      // iOS Safari predates the display-mode media query.
-      (window.navigator as unknown as { standalone?: boolean }).standalone === true;
-    if (!standalone) return;
-
-    try {
-      if (sessionStorage.getItem(SEEN_KEY) === "1") return;
-      sessionStorage.setItem(SEEN_KEY, "1");
-    } catch {
-      // Private mode can throw on both calls; showing it once anyway is fine.
-    }
-
-    setState("visible");
-    const fade = setTimeout(() => setState("fading"), HOLD_MS);
-    const done = setTimeout(() => setState("hidden"), HOLD_MS + FADE_MS);
-    return () => {
-      clearTimeout(fade);
-      clearTimeout(done);
-    };
-  }, []);
-
-  if (state === "hidden") return null;
-
   return (
-    <div
-      aria-hidden
-      onClick={() => setState("hidden")}
-      className={[
-        "fixed inset-0 z-[100] flex flex-col items-center justify-center gap-5",
-        "bg-navy-900 transition-opacity ease-out motion-reduce:transition-none",
-        state === "fading" ? "pointer-events-none opacity-0" : "opacity-100",
-      ].join(" ")}
-      style={{ transitionDuration: `${FADE_MS}ms` }}
-    >
-      <Image
-        src="/logo-light.png"
-        alt=""
-        width={1378}
-        height={554}
-        priority
-        className="w-[62vw] max-w-xs"
-      />
+    <>
+      <Script id="ezbz-splash-toggle" strategy="beforeInteractive">
+        {TOGGLE}
+      </Script>
 
-      {/* Rule — MALL — rule, matching the iOS launch images exactly. */}
-      <div className="flex items-center gap-4">
-        <span className="h-px w-10 bg-gold-500/70" />
-        <span className="text-lg font-semibold tracking-[0.42em] text-gold-500 sm:text-xl">
-          MALL
-        </span>
-        <span className="h-px w-10 bg-gold-500/70" />
+      {/* Hidden by default; the script above opts the installed app in, so a
+          browser visit never sees it. */}
+      <div id="ezbz-splash" aria-hidden>
+        <Image
+          src="/logo-light.png"
+          alt=""
+          width={1378}
+          height={554}
+          priority
+          className="w-[62vw] max-w-xs"
+        />
+        <div className="flex items-center gap-4">
+          <span className="h-px w-10 bg-gold-500/70" />
+          <span className="text-lg font-semibold tracking-[0.42em] text-gold-500 sm:text-xl">
+            MALL
+          </span>
+          <span className="h-px w-10 bg-gold-500/70" />
+        </div>
       </div>
-    </div>
+    </>
   );
 }
