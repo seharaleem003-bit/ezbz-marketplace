@@ -7,6 +7,7 @@ import { useActionState, useRef, useState } from "react";
 import type { ListingFormState } from "./actions";
 import { EMPTY_LISTING_FORM_DEFAULTS, type ListingFormDefaults } from "./listing-form-defaults";
 import { PhotoUploader } from "./photo-uploader";
+import { DuplicateDialog } from "./duplicate-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -68,6 +69,14 @@ export function ListingForm({
 
   const errors = state?.fieldErrors ?? {};
 
+  // The duplicate prompt is a pause, not a failure: everything typed is still
+  // in the form. Dismissing it just closes the prompt; "create it anyway"
+  // re-submits the same fields with the operator's confirmation attached.
+  const formRef = useRef<HTMLFormElement>(null);
+  const confirmRef = useRef<HTMLInputElement>(null);
+  const [duplicatesDismissed, setDuplicatesDismissed] = useState(false);
+  const duplicates = duplicatesDismissed ? [] : (state?.duplicates ?? []);
+
   // Auto-derive the slug from the title as the seller/admin types, unless
   // they've deliberately edited the slug themselves — removes a whole field
   // of manual typing for the common case without taking away control. Both
@@ -90,7 +99,22 @@ export function ListingForm({
         : "delivery";
 
   return (
-    <form action={formAction} className="flex max-w-2xl flex-col gap-4">
+    <form ref={formRef} action={formAction} className="flex max-w-2xl flex-col gap-4">
+      {/* Set only when the operator says the match isn't the same product. */}
+      <input ref={confirmRef} type="hidden" name="confirmNewListing" value="" />
+
+      {duplicates.length > 0 ? (
+        <DuplicateDialog
+          duplicates={duplicates}
+          onDismiss={() => setDuplicatesDismissed(true)}
+          onCreateAnyway={() => {
+            if (confirmRef.current) confirmRef.current.value = "1";
+            setDuplicatesDismissed(true);
+            formRef.current?.requestSubmit();
+          }}
+        />
+      ) : null}
+
       <div className="grid grid-cols-2 gap-4">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="title">Title</Label>

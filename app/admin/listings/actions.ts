@@ -9,9 +9,19 @@ import { computeDealScore } from "@/lib/deal-score";
 import { listingFormSchema, parsePhotoUrls } from "@/lib/validation/listing";
 import { notifyPrebookWaitlist } from "@/lib/prebook-notify";
 import { generateSeoCopy, isAiSeoConfigured } from "@/lib/ai-seo";
+import { findDuplicateListings, type DuplicateCandidate } from "@/lib/duplicate-listings";
 
 export type ListingFormState =
-  | { error?: string; fieldErrors?: Record<string, string[] | undefined> }
+  | {
+      error?: string;
+      fieldErrors?: Record<string, string[] | undefined>;
+      /**
+       * Set when saving a NEW listing turned up products that look like the
+       * same thing. The form shows them and asks; nothing is written until
+       * the operator decides.
+       */
+      duplicates?: DuplicateCandidate[];
+    }
   | undefined;
 
 function readFormValues(formData: FormData) {
@@ -60,6 +70,19 @@ async function upsertListing(
   }
 
   const data = parsed.data;
+
+  // Duplicate check, on create only and only until the operator has answered.
+  // Runs before any write, so declining costs nothing and the form keeps
+  // everything they typed. `confirmNewListing` is their explicit "yes, this
+  // really is a separate product".
+  if (!existingId && formData.get("confirmNewListing") !== "1") {
+    const duplicates = await findDuplicateListings({
+      title: data.title,
+      amazonUrl: data.amazonUrl,
+      slug: data.slug,
+    });
+    if (duplicates.length > 0) return { duplicates };
+  }
 
   // Staff build the catalogue but don't decide what goes live. Enforced here
   // rather than by hiding the dropdown, because a hidden field is not a
@@ -372,4 +395,65 @@ export async function bulkDeleteListingsAction(ids: string[]): Promise<BulkDelet
   for (const l of listings) revalidatePath(`/listings/${l.slug}`);
 
   return { deleted: result.count };
+}
+
+export interface RestockResult {
+  error?: string;
+  /** Set on success, so the form can say what happened and link to it. */
+  restocked?: { title: string; slug: string; id: string; newQty: number; republished: boolean };
+}
+
+/**
+ * Adds stock to an existing listing instead of creating a duplicate of it.
+ *
+ * The whole point of the duplicate prompt: the operator has more of something
+ * already in the catalogue, and a second record would split its stock, its
+ * reviews and its search ranking. An archived or draft listing is republished
+ * on restock, because having units of it again is precisely what makes it
+ * sellable — leaving it hidden would look like the restock did nothing.
+ */
+export async function restockExistingListingAction(
+  listingId: string,
+  addQuantity: number
+): Promise<RestockResult> {
+  const session = await requireCatalogAccess();
+
+  if (!Number.isInteger(addQuantity) || addQuantity < 1 || addQuantity > 10000) {
+    return { error: "Enter how many units to add, as a whole number." };
+  }
+
+  const listing = await prisma.listing.findUnique({
+    where: { id: listingId },
+    select: { id: true, title: true, slug: true, status: true, inventoryQty: true },
+  });
+  if (!listing) return { error: "That listing no longer exists." };
+
+  // Staff can restock but not publish, so an archived listing they restock
+  // stays hidden for an admin to release.
+  const canPublish = session.user.role === "ADMIN";
+  const republish = canPublish && listing.status !== "PUBLISHED";
+
+  const updated = await prisma.listing.update({
+    where: { id: listingId },
+    data: {
+      inventoryQty: { increment: addQuantity },
+      ...(republish ? { status: "PUBLISHED", publishedAt: new Date() } : {}),
+    },
+    select: { inventoryQty: true },
+  });
+
+  revalidatePath("/admin/listings");
+  revalidatePath("/listings");
+  revalidatePath(`/listings/${listing.slug}`);
+  revalidatePath("/");
+
+  return {
+    restocked: {
+      id: listing.id,
+      title: listing.title,
+      slug: listing.slug,
+      newQty: updated.inventoryQty,
+      republished: republish,
+    },
+  };
 }
