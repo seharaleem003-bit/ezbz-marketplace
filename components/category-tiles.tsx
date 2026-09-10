@@ -4,7 +4,8 @@ import { ArrowRight } from "lucide-react";
 
 import { prisma } from "@/lib/prisma";
 import { collectCategoryIds, type CategoryNode } from "@/lib/listings";
-import { getDictionary } from "@/lib/i18n";
+import { getDictionary, getLocale } from "@/lib/i18n";
+import { categoryName } from "@/lib/i18n/content";
 
 /**
  * Departments, built from what's actually in stock.
@@ -36,10 +37,11 @@ const BACKDROPS = [
 
 export async function CategoryTiles() {
   const dict = await getDictionary();
+  const locale = await getLocale();
 
   const [tree, listings] = await Promise.all([
     prisma.category.findMany({
-      select: { id: true, slug: true, name: true, parentId: true, sortOrder: true },
+      select: { id: true, slug: true, name: true, nameEs: true, parentId: true, sortOrder: true },
     }) as Promise<CategoryNode[]>,
     prisma.listing.findMany({
       where: { status: "PUBLISHED" },
@@ -57,7 +59,7 @@ export async function CategoryTiles() {
       const inDept = listings.filter((l) => ids.has(l.categoryId));
       return {
         slug: dept.slug,
-        name: dept.name,
+        name: categoryName(dept, locale),
         count: inDept.length,
         photoUrl: inDept.find((l) => l.photos[0]?.url)?.photos[0]?.url ?? null,
       };

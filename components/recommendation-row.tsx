@@ -1,3 +1,5 @@
+import { getLocale } from "@/lib/i18n";
+import { listingTitle } from "@/lib/i18n/content";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -11,7 +13,7 @@ import type { RecommendedListing } from "@/lib/recommendations";
  * Scrolls rather than wraps, so a long list never pushes the rest of the page
  * down on mobile.
  */
-export function RecommendationRow({
+export async function RecommendationRow({
   heading,
   subheading,
   items,
@@ -23,6 +25,9 @@ export function RecommendationRow({
   labels: { off: string; vsAmazon: string; offRetail: string; outOfStock: string };
 }) {
   if (items.length === 0) return null;
+
+  // Product names come from the database per language.
+  const locale = await getLocale();
 
   return (
     <section className="mt-10">
@@ -50,7 +55,7 @@ export function RecommendationRow({
                 {item.photoUrl ? (
                   <Image
                     src={item.photoUrl}
-                    alt={item.title}
+                    alt={listingTitle(item, locale)}
                     fill
                     sizes="176px"
                     className="object-contain transition-transform duration-300 group-hover/rec:scale-105"
@@ -64,7 +69,7 @@ export function RecommendationRow({
               </div>
 
               <p className="mt-2 line-clamp-2 text-sm leading-snug group-hover/rec:underline">
-                {item.title}
+                {listingTitle(item, locale)}
               </p>
 
               <div className="mt-1 flex flex-wrap items-baseline gap-2">

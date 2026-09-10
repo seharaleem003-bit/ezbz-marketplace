@@ -19,6 +19,7 @@ import { FEATURED_CATEGORIES } from "@/lib/featured-categories";
 import { SELLER_SIGNUP_OPEN } from "@/lib/feature-flags";
 import { DepartmentMenu } from "@/components/department-menu";
 import { getDictionary, getLocale } from "@/lib/i18n";
+import { categoryName } from "@/lib/i18n/content";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { Button } from "@/components/ui/button";
 import { AuthDialog } from "@/components/auth-dialog";
@@ -96,7 +97,7 @@ export async function SiteHeader() {
   const [allCategories, stocked] = await Promise.all([
     prisma.category.findMany({
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-      select: { id: true, slug: true, name: true, parentId: true },
+      select: { id: true, slug: true, name: true, nameEs: true, parentId: true },
     }),
     prisma.listing.groupBy({
       by: ["categoryId"],
@@ -120,9 +121,10 @@ export async function SiteHeader() {
     .filter((c) => c.parentId === null && inStock.has(c.id))
     .map((parent) => ({
       ...parent,
+      name: categoryName(parent, locale),
       children: allCategories
         .filter((c) => c.parentId === parent.id && inStock.has(c.id))
-        .map(({ id, slug, name }) => ({ id, slug, name })),
+        .map(({ id, slug, name, nameEs }) => ({ id, slug, name: categoryName({ name, nameEs }, locale) })),
     }));
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   // Points at /install so scanning lands on the page that offers to install,

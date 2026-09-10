@@ -10,6 +10,7 @@ import { listingFormSchema, parsePhotoUrls } from "@/lib/validation/listing";
 import { notifyPrebookWaitlist } from "@/lib/prebook-notify";
 import { generateSeoCopy, isAiSeoConfigured } from "@/lib/ai-seo";
 import { findDuplicateListings, type DuplicateCandidate } from "@/lib/duplicate-listings";
+import { translateListing, isAiTranslateConfigured } from "@/lib/ai-translate";
 
 export type ListingFormState =
   | {
@@ -206,10 +207,29 @@ async function upsertListing(
   const before = existingId
     ? await prisma.listing.findUnique({
         where: { id: existingId },
-        select: { isPrebook: true, publishedAt: true },
+        select: { isPrebook: true, publishedAt: true, title: true, description: true },
       })
     : null;
   const wasPrebook = before?.isPrebook ?? false;
+
+  // Spanish copy, written once at save time rather than on every page view.
+  // Skipped when the English text is unchanged, so editing a price doesn't pay
+  // to re-translate. Best-effort like the SEO above: the storefront falls back
+  // to English, so a failure costs the translation and nothing else.
+  let translation: { titleEs?: string; descriptionEs?: string } = {};
+  const textChanged =
+    !before || before.title !== data.title || before.description !== data.description;
+  if (textChanged && isAiTranslateConfigured()) {
+    try {
+      const es = await translateListing({ title: data.title, description: data.description });
+      translation = {
+        ...(es.titleEs ? { titleEs: es.titleEs } : {}),
+        ...(es.descriptionEs ? { descriptionEs: es.descriptionEs } : {}),
+      };
+    } catch (error) {
+      console.error("Translation failed; saving listing in English only", error);
+    }
+  }
 
   // First publish stamps the date; later saves leave it alone.
   const publishStamp =
@@ -219,9 +239,9 @@ async function upsertListing(
     const saved = existingId
       ? await tx.listing.update({
           where: { id: existingId },
-          data: { ...listingData, ...publishStamp },
+          data: { ...listingData, ...publishStamp, ...translation },
         })
-      : await tx.listing.create({ data: { ...listingData, ...publishStamp } });
+      : await tx.listing.create({ data: { ...listingData, ...publishStamp, ...translation } });
 
     await tx.listingPhoto.deleteMany({ where: { listingId: saved.id } });
     if (photoUrls.length > 0) {

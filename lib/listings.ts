@@ -36,6 +36,8 @@ export interface CategoryNode {
   id: string;
   slug: string;
   name: string;
+  /** Spanish name; absent or null means show the English one. */
+  nameEs?: string | null;
   parentId: string | null;
   sortOrder: number;
 }

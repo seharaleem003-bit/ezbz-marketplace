@@ -7,13 +7,15 @@ import { CornerRibbon, ribbonFor } from "@/components/corner-ribbon";
 import { ShareMenu } from "@/components/share-menu";
 import { ListingHeartButton } from "@/components/listing-heart-button";
 import { formatCents, formatCondition } from "@/lib/format";
-import { getDictionary } from "@/lib/i18n";
+import { getDictionary, getLocale } from "@/lib/i18n";
+import { categoryName, listingTitle } from "@/lib/i18n/content";
 import { getViewerWatchedIds } from "@/lib/watches";
 
 export interface ListingCardData {
   id: string;
   slug: string;
   title: string;
+  titleEs?: string | null;
   priceCents: number;
   retailPriceCents: number | null;
   amazonPriceCents?: number | null;
@@ -22,7 +24,7 @@ export interface ListingCardData {
   isPrebook?: boolean;
   inventoryQty?: number;
   prebookReleaseAt?: Date | null;
-  category: { name: string };
+  category: { name: string; nameEs?: string | null };
   photos: { url: string; altText: string | null }[];
 }
 
@@ -34,6 +36,10 @@ export async function ListingCard({
   referralCode?: string | null;
 }) {
   const dict = await getDictionary();
+  const locale = await getLocale();
+  // Catalogue copy is stored per language; falls back to English when a
+  // translation has not been written yet.
+  const title = listingTitle(listing, locale);
   // One query per request, not per card — see lib/watches.ts.
   const watched = await getViewerWatchedIds();
   const photo = listing.photos[0];
@@ -55,7 +61,7 @@ export async function ListingCard({
         {photo ? (
           <Image
             src={photo.url}
-            alt={photo.altText ?? listing.title}
+            alt={photo.altText ?? title}
             fill
             sizes="(min-width: 1024px) 280px, (min-width: 640px) 45vw, 90vw"
             className="object-contain transition-transform duration-300 group-hover:scale-105"
@@ -91,9 +97,9 @@ export async function ListingCard({
           </p>
         ) : null}
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          {listing.category.name} &middot; {formatCondition(listing.condition)}
+          {categoryName(listing.category, locale)} &middot; {formatCondition(listing.condition)}
         </p>
-        <h3 className="line-clamp-2 text-sm font-medium leading-snug">{listing.title}</h3>
+        <h3 className="line-clamp-2 text-sm font-medium leading-snug">{title}</h3>
         <div className="mt-auto flex items-baseline gap-2 pt-1">
           <span className="text-lg font-semibold">{formatCents(listing.priceCents)}</span>
           {listing.retailPriceCents && listing.retailPriceCents > listing.priceCents ? (
@@ -107,7 +113,7 @@ export async function ListingCard({
       <Link
         href={`/listings/${listing.slug}`}
         className="absolute inset-0 z-10"
-        aria-label={listing.title}
+        aria-label={title}
       />
 
       <div className="absolute right-2 top-2 z-20 flex items-center gap-1.5">
@@ -121,13 +127,13 @@ export async function ListingCard({
         />
         <ShareMenu
           url={listingUrl}
-          title={listing.title}
+          title={title}
           referralCode={referralCode}
           labels={dict.share}
           trigger={
             <button
               type="button"
-              aria-label={`${dict.listing.shareLabel}: ${listing.title}`}
+              aria-label={`${dict.listing.shareLabel}: ${title}`}
               className="flex size-8 items-center justify-center rounded-full bg-background/90 text-foreground shadow-sm ring-1 ring-foreground/10 backdrop-blur transition-colors hover:bg-background"
             >
               <Share2 className="size-4" />

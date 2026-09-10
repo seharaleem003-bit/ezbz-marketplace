@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 import { ChevronRight, Flag, Heart, Share2 } from "lucide-react";
 
 import { getListingBySlug, buildBreadcrumb, type CategoryNode } from "@/lib/listings";
+import { categoryName, listingTitle, listingDescription } from "@/lib/i18n/content";
 import { formatCents, formatCondition, formatJoinedDate } from "@/lib/format";
 import { getOptionalSession } from "@/lib/auth/dal";
 import { getDictionary, getLocale, t } from "@/lib/i18n";
@@ -118,6 +119,10 @@ export default async function ListingDetailPage({
   });
 
   const locale = await getLocale();
+  // Catalogue copy is stored per language, falling back to English.
+  const displayTitle = listingTitle(listing, locale);
+  const displayDescription = listingDescription(listing, locale);
+  const displayCategory = categoryName(listing.category, locale);
   const prebookSavingCents = listing.isPrebook ? prebookDiscountFor(listing.priceCents) : 0;
   const ribbon = ribbonFor(listing);
 
@@ -139,7 +144,7 @@ export default async function ListingDetailPage({
       priceCents: listing.priceCents,
     }),
     prisma.category.findMany({
-      select: { id: true, slug: true, name: true, parentId: true, sortOrder: true },
+      select: { id: true, slug: true, name: true, nameEs: true, parentId: true, sortOrder: true },
     }) as Promise<CategoryNode[]>,
   ]);
   const breadcrumb = buildBreadcrumb(categoryTree, listing.categoryId);
@@ -191,7 +196,7 @@ export default async function ListingDetailPage({
       <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1">
         <BackToResults
           categoryHref={`/listings?category=${listing.category.slug}`}
-          categoryName={listing.category.name}
+          categoryName={displayCategory}
         />
         {breadcrumb.length > 0 ? (
           <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-1 text-sm text-muted-foreground">
@@ -200,7 +205,7 @@ export default async function ListingDetailPage({
               <span key={crumb.id} className="flex items-center gap-1">
                 {i > 0 ? <ChevronRight aria-hidden className="size-3.5 opacity-50" /> : null}
                 <Link href={`/listings?category=${crumb.slug}`} className="hover:text-foreground hover:underline">
-                  {crumb.name}
+                  {categoryName(crumb, locale)}
                 </Link>
               </span>
             ))}
@@ -215,7 +220,7 @@ export default async function ListingDetailPage({
           url: photo.url,
           altText: photo.altText,
         }))}
-        title={listing.title}
+        title={displayTitle}
         labels={{ previous: dict.home.previousListing, next: dict.home.nextListing }}
         ribbon={
           ribbon ? (
@@ -265,7 +270,7 @@ export default async function ListingDetailPage({
               </Link>
             )}
             <ListingShareButton
-              title={listing.title}
+              title={displayTitle}
               url={listingUrl}
               referralCode={viewer?.referralCode}
               ariaLabel={dict.listing.shareLabel}
@@ -275,8 +280,8 @@ export default async function ListingDetailPage({
               trigger={<Flag className="size-6" />}
               triggerClassName="text-muted-foreground hover:text-foreground"
               dialogTitle="Report this listing"
-              description={`Let us know what's wrong with "${listing.title}" and our team will take a look.`}
-              defaultMessage={`Reporting listing: ${listing.title} (${listingUrl})\n\n`}
+              description={`Let us know what's wrong with "${displayTitle}" and our team will take a look.`}
+              defaultMessage={`Reporting listing: ${displayTitle} (${listingUrl})\n\n`}
               submitLabel="Submit report"
             />
           </div>
@@ -284,9 +289,9 @@ export default async function ListingDetailPage({
 
         <div>
           <p className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
-            {listing.category.name} &middot; {formatCondition(listing.condition)}
+            {displayCategory} &middot; {formatCondition(listing.condition)}
           </p>
-          <h1 className="text-2xl font-heading font-semibold">{listing.title}</h1>
+          <h1 className="text-2xl font-heading font-semibold">{displayTitle}</h1>
         </div>
 
         {/* No "posted N days ago": stock is loaded in bulk, so the date says
@@ -322,7 +327,7 @@ export default async function ListingDetailPage({
         ) : null}
 
         <AmazonPriceCompare
-          title={listing.title}
+          title={displayTitle}
           ezbzPriceCents={listing.priceCents}
           amazonPriceCents={listing.amazonPriceCents}
           amazonUrl={listing.amazonUrl}
@@ -461,11 +466,12 @@ export default async function ListingDetailPage({
         <BundleCard
           main={{
             id: listing.id,
-            title: listing.title,
+            title: displayTitle,
             priceCents: listing.priceCents,
             photoUrl: listing.photos[0]?.url ?? null,
           }}
-          companion={boughtTogether.item}
+          // Client component, so it cannot read the locale itself.
+          companion={{ ...boughtTogether.item, title: listingTitle(boughtTogether.item, locale) }}
           labels={{
             // Only claim "frequently bought together" when order history
             // actually says so. Otherwise it's a same-aisle suggestion and is

@@ -217,6 +217,9 @@ model Address {
 model Category {
   id       String    @id @default(cuid())
   name     String
+  // Spanish display name. Null falls back to `name`, so a missing
+  // translation shows English rather than a blank category.
+  nameEs   String?
   slug     String    @unique
   listings Listing[]
 
@@ -346,6 +349,10 @@ model Listing {
   slug        String           @unique
   title       String
   description String
+  // Spanish copy for the storefront. Null falls back to the English above,
+  // so an untranslated listing is still a complete page rather than a gap.
+  titleEs       String?
+  descriptionEs String?
   categoryId  String
   category    Category         @relation(fields: [categoryId], references: [id])
   condition   ListingCondition

@@ -6,7 +6,8 @@ import { getListings, type ListingSearchParams } from "@/lib/listings";
 import { ListingCard } from "@/components/listing-card";
 import { ListingFilters } from "@/components/listing-filters";
 import { Button } from "@/components/ui/button";
-import { getDictionary, t } from "@/lib/i18n";
+import { getDictionary, getLocale, t } from "@/lib/i18n";
+import { categoryName } from "@/lib/i18n/content";
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getDictionary()).meta.browse };
@@ -21,6 +22,7 @@ export default async function ListingsPage({
 }) {
   const params = await searchParams;
   const dict = await getDictionary();
+  const locale = await getLocale();
   const {
     listings,
     total,
@@ -68,13 +70,13 @@ export default async function ListingsPage({
               <span key={crumb.id} className="flex items-center gap-1">
                 <ChevronRight className="size-3.5 text-muted-foreground" />
                 {i === breadcrumb.length - 1 ? (
-                  <span className="font-medium">{crumb.name}</span>
+                  <span className="font-medium">{categoryName(crumb, locale)}</span>
                 ) : (
                   <Link
                     href={categoryHref(crumb.slug)}
                     className="text-muted-foreground hover:underline"
                   >
-                    {crumb.name}
+                    {categoryName(crumb, locale)}
                   </Link>
                 )}
               </span>
@@ -83,7 +85,7 @@ export default async function ListingsPage({
         ) : null}
 
         <h1 className="text-2xl font-heading font-semibold">
-          {selectedCategory ? selectedCategory.name : dict.browse.title}
+          {selectedCategory ? categoryName(selectedCategory, locale) : dict.browse.title}
         </h1>
         {/* Counted only for a search, where the number answers "did that find
             anything?". Browsing a category, it just advertises how small the
@@ -113,7 +115,7 @@ export default async function ListingsPage({
               href={categoryHref(sub.slug)}
               className="rounded-full border px-3 py-1.5 text-sm font-medium transition-colors hover:border-gold-500 hover:bg-gold-500/10"
             >
-              {sub.name}
+              {categoryName(sub, locale)}
             </Link>
           ))}
         </div>

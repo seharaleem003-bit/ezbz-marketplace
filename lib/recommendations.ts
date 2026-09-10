@@ -26,6 +26,7 @@ export interface RecommendedListing {
   id: string;
   slug: string;
   title: string;
+  titleEs?: string | null;
   priceCents: number;
   retailPriceCents: number | null;
   amazonPriceCents: number | null;
@@ -33,18 +34,20 @@ export interface RecommendedListing {
   isPrebook: boolean;
   photoUrl: string | null;
   categoryName: string;
+  categoryNameEs?: string | null;
 }
 
 const SELECT = {
   id: true,
   slug: true,
   title: true,
+  titleEs: true,
   priceCents: true,
   retailPriceCents: true,
   amazonPriceCents: true,
   inventoryQty: true,
   isPrebook: true,
-  category: { select: { name: true } },
+  category: { select: { name: true, nameEs: true } },
   photos: { orderBy: { sortOrder: "asc" as const }, take: 1, select: { url: true } },
 };
 
@@ -52,12 +55,13 @@ type RawListing = {
   id: string;
   slug: string;
   title: string;
+  titleEs: string | null;
   priceCents: number;
   retailPriceCents: number | null;
   amazonPriceCents: number | null;
   inventoryQty: number;
   isPrebook: boolean;
-  category: { name: string };
+  category: { name: string; nameEs: string | null };
   photos: { url: string }[];
 };
 
@@ -66,6 +70,7 @@ function shape(l: RawListing): RecommendedListing {
     id: l.id,
     slug: l.slug,
     title: l.title,
+    titleEs: l.titleEs,
     priceCents: l.priceCents,
     retailPriceCents: l.retailPriceCents,
     amazonPriceCents: l.amazonPriceCents,
@@ -73,6 +78,7 @@ function shape(l: RawListing): RecommendedListing {
     isPrebook: l.isPrebook,
     photoUrl: l.photos[0]?.url ?? null,
     categoryName: l.category.name,
+    categoryNameEs: l.category.nameEs,
   };
 }
 
