@@ -211,11 +211,10 @@ export async function SiteHeader() {
             label={dict.header.getTheApp}
             shortLabel={dict.header.getTheAppShort}
           />
-          {/* These two do drop on phones: the row has no space left, and both
-              are reachable from the footer. */}
-          <span className="hidden sm:inline-flex">
-            <LanguageSwitcher current={locale} label={dict.header.language} />
-          </span>
+          {/* Kept at every size. It is an icon button, so it costs the phone
+              row about as much as the cart, and someone who needs the site in
+              Spanish needs it on their phone most of all. */}
+          <LanguageSwitcher current={locale} label={dict.header.language} />
           <Button
             variant="ghost"
             size="icon"
