@@ -308,6 +308,8 @@ export function ListingForm({
 
       <div className="grid grid-cols-2 gap-4">
         <div className="flex flex-col gap-1.5">
+          {/* Named for where the figure comes from, since that is what the
+              operator looks up. Shoppers see it as "Estimated retail". */}
           <Label htmlFor="amazonPrice">Amazon price ($, optional)</Label>
           <Input
             id="amazonPrice"

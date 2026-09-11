@@ -9,7 +9,7 @@ export default function AboutPage() {
       <p className="mt-4 text-muted-foreground">
         EZBZ Marketplace connects shoppers with discounted inventory at real
         discounts. Every listing carries a Deal Score™ so you know at a glance how good the
-        deal really is, backed by Amazon price comparisons and video walkarounds.
+        deal really is, backed by estimated retail price comparisons and video walkarounds.
       </p>
     </div>
   );

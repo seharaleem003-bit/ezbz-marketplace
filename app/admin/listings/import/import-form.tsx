@@ -29,7 +29,7 @@ export function ImportForm() {
             <p className="mt-1.5 font-medium">Used when present:</p>
             <ul className="mt-1 space-y-0.5 text-muted-foreground">
               <li>
-                <strong>Amazon Price</strong> — turns on the &ldquo;% off vs Amazon&rdquo; badge
+                <strong>Amazon Price</strong> — turns on the &ldquo;% off vs retail&rdquo; badge
                 and Deal Score
               </li>
               <li>

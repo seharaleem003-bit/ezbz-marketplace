@@ -38,7 +38,11 @@ export function AmazonPriceCompare({
       {hasPrice ? (
         <>
           <div className="flex items-center justify-between gap-2">
-            <span className="text-muted-foreground">Amazon price</span>
+            {/* Presented as estimated retail rather than as a named
+                retailer's price. The figure is still the one researched for
+                this product; the "Compare" link below lets a shopper check it
+                for themselves, which is what keeps the claim honest. */}
+            <span className="text-muted-foreground">Estimated retail</span>
             <span className="font-medium">{formatCents(amazonPriceCents as number)}</span>
           </div>
           {savingsCents > 0 ? (
@@ -49,7 +53,7 @@ export function AmazonPriceCompare({
         </>
       ) : (
         <p className="text-muted-foreground">
-          Check the price elsewhere before you buy — we&apos;ll take you straight to Amazon
+          Check the price elsewhere before you buy — we&apos;ll take you straight to search
           results for this item.
         </p>
       )}

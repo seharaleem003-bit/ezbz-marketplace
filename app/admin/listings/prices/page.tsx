@@ -37,7 +37,7 @@ export default async function AmazonPricesPage() {
           <h1 className="font-heading text-2xl font-semibold">Amazon prices</h1>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
             Open each Amazon link, read the current price, type it in. Every price you save
-            switches on that listing&apos;s &ldquo;% off vs Amazon&rdquo; badge and recalculates
+            switches on that listing&apos;s &ldquo;% off vs retail&rdquo; badge and recalculates
             its Deal Score.
           </p>
         </div>
