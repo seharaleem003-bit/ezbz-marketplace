@@ -173,10 +173,69 @@ export async function getListings(params: ListingSearchParams) {
     photos: { orderBy: { sortOrder: "asc" as const }, take: 1 },
   };
 
+  const searchQuery = params.q?.trim();
+
+  // Relevance ranking for searches. Without it results come back newest-first,
+  // so a search for "camping" led with dog playpens whose titles happen to say
+  // "RV Camping" and buried the one actual camping product. What the shopper
+  // means is best signalled by the category, then the product's own name;
+  // a passing mention in a long description means least.
+  //
+  // Only when the shopper hasn't asked for a specific order — picking "Price,
+  // low to high" should give exactly that.
+  const rankSearch = Boolean(searchQuery) && !params.sort;
+  let rankById: Map<string, number> | null = null;
+
+  if (rankSearch && searchQuery) {
+    const tokens = searchQuery.split(/\s+/).filter((w) => w.length >= 2).slice(0, 6);
+    const terms = tokens.length > 0 ? tokens : [searchQuery];
+    // Built as one expression so ranking is a single pass in the database.
+    const score = terms
+      .map((term) => {
+        const like = `%${term.replace(/[%_\\]/g, "\\$&")}%`;
+        return Prisma.sql`
+          (CASE WHEN c.name ILIKE ${like} THEN 8 ELSE 0 END) +
+          (CASE WHEN l.title ILIKE ${like} THEN 5 ELSE 0 END) +
+          (CASE WHEN l."searchKeywords" ILIKE ${like} THEN 2 ELSE 0 END) +
+          (CASE WHEN l.description ILIKE ${like} THEN 1 ELSE 0 END)`;
+      })
+      .reduce((a, b) => Prisma.sql`${a} + ${b}`);
+
+    // The phrase bonus rewards all the words appearing together, so it only
+    // means anything for a multi-word query. Applied to a single word it just
+    // counts the title match twice, which is what let "camping" rank dog
+    // playpens with "RV Camping" in the name above actual camping gear.
+    const phraseBonus =
+      terms.length > 1
+        ? Prisma.sql`CASE WHEN l.title ILIKE ${`%${searchQuery.replace(/[%_\\]/g, "\\$&")}%`} THEN 6 ELSE 0 END`
+        : Prisma.sql`0`;
+    const ranked = await prisma.$queryRaw<{ id: string; score: number }[]>`
+      SELECT l.id, (${score} + ${phraseBonus}) AS score
+      FROM "Listing" l
+      JOIN "Category" c ON c.id = l."categoryId"
+      WHERE l.status = 'PUBLISHED'
+      ORDER BY score DESC
+      LIMIT 500`;
+    rankById = new Map(ranked.filter((r) => Number(r.score) > 0).map((r) => [r.id, Number(r.score)]));
+  }
+
   let [listings, total] = await Promise.all([
-    prisma.listing.findMany({ where, orderBy, skip, take: PAGE_SIZE, include }),
+    // Ranked searches page in memory: the order comes from the score above,
+    // which the database cannot apply through Prisma's orderBy. The catalogue
+    // is small enough that fetching the matches costs less than the round
+    // trips a cursor would need.
+    rankById
+      ? prisma.listing.findMany({ where, include })
+      : prisma.listing.findMany({ where, orderBy, skip, take: PAGE_SIZE, include }),
     prisma.listing.count({ where }),
   ]);
+
+  if (rankById) {
+    const ranks = rankById;
+    listings = listings
+      .sort((a, b) => (ranks.get(b.id) ?? 0) - (ranks.get(a.id) ?? 0) || b.dealScore - a.dealScore)
+      .slice(skip, skip + PAGE_SIZE);
+  }
 
   // Typo fallback. Exact matching is the fast path and runs first; only when
   // it finds nothing does a trigram pass look for near-misses, so "chandiliers"
