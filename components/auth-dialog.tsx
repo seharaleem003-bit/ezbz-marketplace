@@ -5,7 +5,14 @@ import Link from "next/link";
 import { Mail, ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
 
-import { loginAction, type LoginActionState } from "@/app/(auth)/actions";
+import { useSearchParams } from "next/navigation";
+
+import {
+  loginAction,
+  signupAction,
+  type LoginActionState,
+  type SignupActionState,
+} from "@/app/(auth)/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -122,7 +129,7 @@ function ProvidersStep({ onEmail }: { onEmail: () => void }) {
   );
 }
 
-function EmailStep({ onBack }: { onBack: () => void }) {
+function EmailStep({ onBack, onSignup }: { onBack: () => void; onSignup: () => void }) {
   const [state, action, pending] = useActionState<LoginActionState, FormData>(
     loginAction,
     undefined
@@ -179,9 +186,104 @@ function EmailStep({ onBack }: { onBack: () => void }) {
 
       <p className="text-center text-sm text-muted-foreground">
         New to EZBZ?{" "}
-        <Link href="/signup" className="font-medium text-foreground underline underline-offset-4">
+        {/* Switches step rather than navigating to /signup. The link only
+            exists once the dialog is open, so Next never gets a chance to
+            prefetch that route and the click paid for a full page load. */}
+        <button
+          type="button"
+          onClick={onSignup}
+          className="font-medium text-foreground underline underline-offset-4"
+        >
           Create an account
-        </Link>
+        </button>
+      </p>
+    </div>
+  );
+}
+
+function SignupStep({ onBack, onLogin }: { onBack: () => void; onLogin: () => void }) {
+  const [state, action, pending] = useActionState<SignupActionState, FormData>(
+    signupAction,
+    undefined
+  );
+
+  // Referral codes arrive as ?ref= on any page, and a shopper can open this
+  // from anywhere, so it is read here rather than passed down.
+  const searchParams = useSearchParams();
+  const referralCode = searchParams.get("ref") ?? "";
+
+  return (
+    <div className="flex flex-col gap-4 px-2 pb-2 pt-1">
+      <button
+        type="button"
+        onClick={onBack}
+        className="flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      >
+        <ChevronLeft className="size-4" />
+        Back
+      </button>
+
+      <div className="text-center">
+        <h2 className="text-lg font-heading font-semibold">Create your EZBZ account</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Deals, walkarounds, and Deal Score&trade; on every listing.
+        </p>
+      </div>
+
+      <form action={action} className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="auth-dialog-name">Name</Label>
+          <Input id="auth-dialog-name" name="name" autoComplete="name" required />
+          {state?.fieldErrors?.name ? (
+            <p className="text-sm text-destructive">{state.fieldErrors.name[0]}</p>
+          ) : null}
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="auth-dialog-signup-email">Email</Label>
+          <Input
+            id="auth-dialog-signup-email"
+            name="email"
+            type="email"
+            autoComplete="email"
+            required
+          />
+          {state?.fieldErrors?.email ? (
+            <p className="text-sm text-destructive">{state.fieldErrors.email[0]}</p>
+          ) : null}
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="auth-dialog-new-password">Password</Label>
+          <Input
+            id="auth-dialog-new-password"
+            name="password"
+            type="password"
+            autoComplete="new-password"
+            required
+          />
+          {state?.fieldErrors?.password ? (
+            <p className="text-sm text-destructive">{state.fieldErrors.password[0]}</p>
+          ) : null}
+        </div>
+        <input type="hidden" name="referralCode" value={referralCode} />
+        {state?.error ? (
+          <p className="text-sm text-destructive" role="alert">
+            {state.error}
+          </p>
+        ) : null}
+        <Button type="submit" disabled={pending} className="w-full">
+          {pending ? "Creating account…" : "Create account"}
+        </Button>
+      </form>
+
+      <p className="text-center text-sm text-muted-foreground">
+        Already have an account?{" "}
+        <button
+          type="button"
+          onClick={onLogin}
+          className="font-medium text-foreground underline underline-offset-4"
+        >
+          Sign in
+        </button>
       </p>
     </div>
   );
@@ -189,7 +291,7 @@ function EmailStep({ onBack }: { onBack: () => void }) {
 
 export function AuthDialog() {
   const [open, setOpen] = useState(false);
-  const [step, setStep] = useState<"providers" | "email">("providers");
+  const [step, setStep] = useState<"providers" | "email" | "signup">("providers");
 
   return (
     <Dialog
@@ -218,8 +320,10 @@ export function AuthDialog() {
 
         {step === "providers" ? (
           <ProvidersStep onEmail={() => setStep("email")} />
+        ) : step === "signup" ? (
+          <SignupStep onBack={() => setStep("providers")} onLogin={() => setStep("email")} />
         ) : (
-          <EmailStep onBack={() => setStep("providers")} />
+          <EmailStep onBack={() => setStep("providers")} onSignup={() => setStep("signup")} />
         )}
       </DialogContent>
     </Dialog>
