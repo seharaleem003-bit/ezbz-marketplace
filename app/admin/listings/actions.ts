@@ -477,3 +477,20 @@ export async function restockExistingListingAction(
     },
   };
 }
+
+/**
+ * Live duplicate check, called as the operator types a title.
+ *
+ * The same detection that guards the save, surfaced early — finding out a
+ * product is already listed is far more useful before filling in the rest of
+ * the form than after pressing Save.
+ */
+export async function checkDuplicatesAction(
+  title: string,
+  amazonUrl?: string | null,
+  excludeId?: string | null
+): Promise<DuplicateCandidate[]> {
+  await requireCatalogAccess();
+  if (!title || title.trim().length < 6) return [];
+  return findDuplicateListings({ title, amazonUrl, excludeId });
+}

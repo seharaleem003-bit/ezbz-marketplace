@@ -44,10 +44,17 @@ export function DuplicateDialog({
   duplicates,
   onCreateAnyway,
   onDismiss,
+  mode = "modal",
 }: {
   duplicates: DuplicateCandidate[];
-  onCreateAnyway: () => void;
+  onCreateAnyway?: () => void;
   onDismiss: () => void;
+  /**
+   * "modal" blocks the save that triggered it. "inline" sits in the form as a
+   * warning while the title is still being typed, where there is nothing to
+   * confirm yet — so it offers restocking but not "create anyway".
+   */
+  mode?: "modal" | "inline";
 }) {
   const [qty, setQty] = useState<Record<string, string>>({});
   const [result, setResult] = useState<RestockResult["restocked"] | null>(null);
@@ -72,8 +79,20 @@ export function DuplicateDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 py-10">
-      <div className="w-full max-w-3xl rounded-xl bg-card shadow-xl ring-1 ring-foreground/10">
+    <div
+      className={
+        mode === "modal"
+          ? "fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 py-10"
+          : ""
+      }
+    >
+      <div
+        className={
+          mode === "modal"
+            ? "w-full max-w-3xl rounded-xl bg-card shadow-xl ring-1 ring-foreground/10"
+            : "w-full rounded-xl bg-card ring-1 ring-gold-500/50"
+        }
+      >
         {result ? (
           <div className="p-6">
             <h2 className="flex items-center gap-2 text-lg font-heading font-semibold text-emerald-700">
@@ -111,9 +130,9 @@ export function DuplicateDialog({
                   : `${duplicates.length} products look like this one`}
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Adding it again splits the stock across two pages and makes both harder to find.
-                Add the units to the existing listing instead, unless this really is a different
-                product.
+                {mode === "inline"
+                  ? "You may already stock this. Add the units to the existing listing instead of creating a second one — a duplicate splits the stock across two pages and makes both harder to find."
+                  : "Adding it again splits the stock across two pages and makes both harder to find. Add the units to the existing listing instead, unless this really is a different product."}
               </p>
             </div>
 
@@ -209,13 +228,17 @@ export function DuplicateDialog({
               </p>
             ) : null}
 
+            {/* Inline, nothing has been submitted yet, so there is no save to
+                confirm — just a way to stop being warned and carry on. */}
             <div className="flex flex-wrap items-center justify-between gap-3 border-t p-4">
               <Button variant="ghost" onClick={onDismiss} disabled={isPending}>
-                Cancel
+                {mode === "modal" ? "Cancel" : "Dismiss"}
               </Button>
-              <Button variant="outline" onClick={onCreateAnyway} disabled={isPending}>
-                No, this is a different product — create it
-              </Button>
+              {mode === "modal" && onCreateAnyway ? (
+                <Button variant="outline" onClick={onCreateAnyway} disabled={isPending}>
+                  No, this is a different product — create it
+                </Button>
+              ) : null}
             </div>
           </>
         )}

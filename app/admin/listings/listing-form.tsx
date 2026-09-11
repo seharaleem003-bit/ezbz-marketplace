@@ -2,9 +2,11 @@
 
 import { Eye } from "lucide-react";
 
-import { useActionState, useRef, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 
 import type { ListingFormState } from "./actions";
+import { checkDuplicatesAction } from "./actions";
+import type { DuplicateCandidate } from "@/lib/duplicate-listings";
 import { EMPTY_LISTING_FORM_DEFAULTS, type ListingFormDefaults } from "./listing-form-defaults";
 import { PhotoUploader } from "./photo-uploader";
 import { DuplicateDialog } from "./duplicate-dialog";
@@ -68,6 +70,8 @@ export function ListingForm({
   );
 
   const errors = state?.fieldErrors ?? {};
+  // Only the create form warns about duplicates; an edit would match itself.
+  const isCreate = !defaults.slug;
 
   // The duplicate prompt is a pause, not a failure: everything typed is still
   // in the form. Dismissing it just closes the prompt; "create it anyway"
@@ -76,6 +80,43 @@ export function ListingForm({
   const confirmRef = useRef<HTMLInputElement>(null);
   const [duplicatesDismissed, setDuplicatesDismissed] = useState(false);
   const duplicates = duplicatesDismissed ? [] : (state?.duplicates ?? []);
+
+  // Live duplicate check while the title is typed. Waiting until Save meant
+  // the warning arrived after the whole form had been filled in — the useful
+  // moment to learn a product is already listed is before that work, not
+  // after it. Only on create; editing a listing matches itself.
+  const [liveDuplicates, setLiveDuplicates] = useState<DuplicateCandidate[]>([]);
+  const [liveDismissed, setLiveDismissed] = useState(false);
+  const checkTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const checkSeq = useRef(0);
+
+  useEffect(() => {
+    return () => {
+      if (checkTimer.current) clearTimeout(checkTimer.current);
+    };
+  }, []);
+
+  function scheduleDuplicateCheck() {
+    if (!isCreate) return;
+    if (checkTimer.current) clearTimeout(checkTimer.current);
+    checkTimer.current = setTimeout(async () => {
+      const title = formRef.current?.querySelector<HTMLInputElement>('input[name="title"]')?.value ?? "";
+      const amazonUrl =
+        formRef.current?.querySelector<HTMLInputElement>('input[name="amazonUrl"]')?.value ?? "";
+      const ticket = ++checkSeq.current;
+      try {
+        const found = await checkDuplicatesAction(title, amazonUrl);
+        // A slower earlier request must not overwrite a newer answer.
+        if (ticket !== checkSeq.current) return;
+        setLiveDuplicates(found);
+        if (found.length > 0) setLiveDismissed(false);
+      } catch {
+        // A failed check must never block adding a listing.
+      }
+    }, 600);
+  }
+
+  const showLive = isCreate && !liveDismissed && liveDuplicates.length > 0 && duplicates.length === 0;
 
   // Auto-derive the slug from the title as the seller/admin types, unless
   // they've deliberately edited the slug themselves — removes a whole field
@@ -101,7 +142,18 @@ export function ListingForm({
   return (
     <form ref={formRef} action={formAction} className="flex max-w-2xl flex-col gap-4">
       {/* Set only when the operator says the match isn't the same product. */}
-      <input ref={confirmRef} type="hidden" name="confirmNewListing" value="" />
+      {/* defaultValue, not value: this is set imperatively before re-submitting,
+          and React would reset a controlled input straight back to "". */}
+      <input ref={confirmRef} type="hidden" name="confirmNewListing" defaultValue="" />
+
+      {/* Warns while the title is being typed, before the form is filled in. */}
+      {showLive ? (
+        <DuplicateDialog
+          mode="inline"
+          duplicates={liveDuplicates}
+          onDismiss={() => setLiveDismissed(true)}
+        />
+      ) : null}
 
       {duplicates.length > 0 ? (
         <DuplicateDialog
@@ -126,6 +178,7 @@ export function ListingForm({
               if (!slugTouched && slugInputRef.current) {
                 slugInputRef.current.value = slugify(e.target.value);
               }
+              scheduleDuplicateCheck();
             }}
             required
           />
