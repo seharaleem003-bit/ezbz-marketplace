@@ -93,3 +93,41 @@ export async function mergeGuestCartIntoUser(userId: string) {
   await prisma.cart.delete({ where: { id: guestCart.id } });
   cookieStore.delete(GUEST_CART_COOKIE);
 }
+
+/**
+ * Brings cart quantities back within what is actually in stock.
+ *
+ * Carts outlive the stock they were filled from: an item added when there
+ * were twenty may sit there for a week while the shelf empties, and carts
+ * created before quantities were enforced can hold any number at all.
+ * Checkout already refuses to oversell, but finding out there is a problem
+ * after entering a card is the worst possible moment.
+ *
+ * Returns the titles it reduced, so the cart page can say what changed rather
+ * than silently altering what someone chose. Pre-books are left alone — they
+ * are sold before they exist.
+ */
+export async function reconcileCartStock(): Promise<{ title: string; to: number }[]> {
+  const cartId = await getCurrentCartId();
+  if (!cartId) return [];
+
+  const items = await prisma.cartItem.findMany({
+    where: { cartId },
+    include: { listing: { select: { title: true, inventoryQty: true, isPrebook: true } } },
+  });
+
+  const changed: { title: string; to: number }[] = [];
+  for (const item of items) {
+    if (item.listing.isPrebook) continue;
+    const cap = Math.max(0, item.listing.inventoryQty);
+    if (item.quantity <= cap) continue;
+
+    if (cap === 0) {
+      await prisma.cartItem.delete({ where: { id: item.id } });
+    } else {
+      await prisma.cartItem.update({ where: { id: item.id }, data: { quantity: cap } });
+    }
+    changed.push({ title: item.listing.title, to: cap });
+  }
+  return changed;
+}

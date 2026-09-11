@@ -7,13 +7,27 @@ import { addToCartAction } from "@/app/cart/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-export function AddToCartForm({ listingId, inStock }: { listingId: string; inStock: boolean }) {
+export function AddToCartForm({
+  listingId,
+  inStock,
+  /** Units available. Null for a pre-book, which is sold before it exists. */
+  maxQuantity,
+}: {
+  listingId: string;
+  inStock: boolean;
+  maxQuantity?: number | null;
+}) {
   const [isPending, startTransition] = useTransition();
 
   function handleSubmit(formData: FormData) {
     startTransition(async () => {
-      await addToCartAction(formData);
-      toast.success("Added to cart");
+      const result = await addToCartAction(formData);
+      // The server caps the quantity to stock; say so rather than silently
+      // adding fewer than the shopper asked for.
+      if (result?.error) toast.error(result.error);
+      else if (result?.cappedTo !== undefined)
+        toast.info(`Only ${result.cappedTo} in stock — your cart has been set to that.`);
+      else toast.success("Added to cart");
     });
   }
 
@@ -24,6 +38,7 @@ export function AddToCartForm({ listingId, inStock }: { listingId: string; inSto
         name="quantity"
         type="number"
         min={1}
+        max={maxQuantity ?? undefined}
         defaultValue={1}
         className="w-20"
         disabled={!inStock}

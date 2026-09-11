@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Minus, Plus, X } from "lucide-react";
@@ -17,18 +17,28 @@ export interface CartItemData {
     slug: string;
     title: string;
     priceCents: number;
+    inventoryQty: number;
+    isPrebook: boolean;
     photos: { url: string; altText: string | null }[];
   };
 }
 
 export function CartItemRow({ item }: { item: CartItemData }) {
   const [isPending, startTransition] = useTransition();
+  const [notice, setNotice] = useState<string | null>(null);
   const photo = item.listing.photos[0];
   const priceChanged = item.priceCentsAtAdd !== item.listing.priceCents;
 
+  // A pre-book is sold before it exists, so its stock count is not a limit.
+  const cap = item.listing.isPrebook ? null : item.listing.inventoryQty;
+  const atMax = cap !== null && item.quantity >= cap;
+
   function updateQuantity(nextQuantity: number) {
+    setNotice(null);
     startTransition(async () => {
-      await updateCartItemQuantityAction(item.id, nextQuantity);
+      const result = await updateCartItemQuantityAction(item.id, nextQuantity);
+      if (result?.error) setNotice(result.error);
+      else if (result?.cappedTo !== undefined) setNotice(`Only ${result.cappedTo} in stock.`);
     });
   }
 
@@ -67,6 +77,17 @@ export function CartItemRow({ item }: { item: CartItemData }) {
             Price updated since you added this item
           </span>
         ) : null}
+        {/* Says why the quantity stopped where it did, rather than letting the
+            + button just go dead with no explanation. */}
+        {notice ? (
+          <span role="status" className="text-xs font-medium text-destructive">
+            {notice}
+          </span>
+        ) : atMax ? (
+          <span className="text-xs text-muted-foreground">
+            {cap} in stock — that&apos;s the maximum
+          </span>
+        ) : null}
       </div>
 
       <div className="flex items-center gap-1">
@@ -83,9 +104,10 @@ export function CartItemRow({ item }: { item: CartItemData }) {
         <Button
           variant="outline"
           size="icon-sm"
-          disabled={isPending}
+          disabled={isPending || atMax}
           onClick={() => updateQuantity(item.quantity + 1)}
           aria-label="Increase quantity"
+          title={atMax ? `Only ${cap} in stock` : undefined}
         >
           <Plus />
         </Button>

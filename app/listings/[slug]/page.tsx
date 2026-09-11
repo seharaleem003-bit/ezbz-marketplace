@@ -407,7 +407,11 @@ export default async function ListingDetailPage({
               />
             </div>
 
-            <AddToCartForm listingId={listing.id} inStock={inStock} />
+            <AddToCartForm
+              listingId={listing.id}
+              inStock={inStock}
+              maxQuantity={listing.isPrebook ? null : listing.inventoryQty}
+            />
 
             {/* Sold out and not a pre-book: capture demand instead of losing
                 the visitor entirely. */}
